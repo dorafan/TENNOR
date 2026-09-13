@@ -1,0 +1,32 @@
+RangePow = 6,9
+K = 2,3
+L = 1,50
+Sparsity = 1,0.005,1,1
+
+ORAM_N = 65536
+
+Batchsize = 32
+Rehash=320
+Rebuild=3200
+InputDim = 101938
+totRecords = 14146
+totRecordsTest = 6616
+
+Lr=0.0001
+Epoch=1
+Stepsize=100
+
+sizesOfLayers=256,30938
+numLayer=2
+
+trainData=../dataset/Wiki10/train.txt
+testData=../dataset/Wiki10/test.txt
+
+weight=../dataset/Wiki10/savedWeights.npz
+savedweight=../dataset/Wiki10/savedWeights.npz
+
+logFile=../dataset/Wiki10/log.txt
+logFile=../dataset/Wiki10/log.txt
+
+
+

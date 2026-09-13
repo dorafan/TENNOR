@@ -1,0 +1,59 @@
+# --- Tooling -----------------------------------------------------------------
+.claude/
+
+# --- CMake / build output ----------------------------------------------------
+bin/
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+_deps/
+
+# ExternalProject checkouts / installs (zlib, cnpy) created under the build dir
+ZLIB-source/
+ZLIB-build/
+CNPY-source/
+CNPY-build/
+ep/
+
+# --- Make output (note: the checked-in SLIDE Makefiles are tracked) ----------
+cppobjs/
+cobjs/
+*.o
+*.a
+*.so
+*.dylib
+runme
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# --- Datasets and experiment output -----------------------------------------
+# Datasets are downloaded from the XML Repository, not tracked here.
+# The placeholder readme in TENNOR/dataset/ is kept.
+TENNOR/dataset/*
+!TENNOR/dataset/readme.md
+SLIDE-ORAM/dataset/
+SLIDE-MP/dataset/
+output_*.txt
+*.npy
+*.npz
+
+# --- Figures produced by scripts/ -------------------------------------------
+scripts/*.pdf
+scripts/*.png
+
+# --- Editors / OS ------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

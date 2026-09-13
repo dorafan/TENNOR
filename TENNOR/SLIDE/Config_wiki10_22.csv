@@ -1,0 +1,47 @@
+RangePow = 3,9
+K = 1,3
+L = 1,1
+Sparsity = 1,0.005,1,1
+
+Batchsize = 32
+Rehash=320
+Rebuild=3200
+InputDim = 101938
+totRecords = 14146
+totRecordsTest = 6616
+
+BUCKETSIZE = 128
+binsize = 8
+isBruteForce = 0
+NNSorMPS = 0
+BFnumber = 0
+
+isMPWTA = 1
+
+isRandom = 0
+
+isExtLog = 0
+
+isLog = 1
+
+threatNum = 22
+
+
+Lr=0.0001
+Epoch=2
+Stepsize=100
+
+sizesOfLayers=256,30938
+numLayer=2
+
+LoadWeight=0
+epochInit=0
+
+trainData=../dataset/Wiki10/train.txt
+testData=../dataset/Wiki10/test.txt
+
+weight=../dataset/w10_savedWeights.npz
+savedweight=../dataset/w10_savedWeights.npz
+
+logFile=../dataset/w10_log.txt
+logFile=../dataset/w10_log.txt

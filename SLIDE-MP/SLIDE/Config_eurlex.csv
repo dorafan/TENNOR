@@ -1,0 +1,47 @@
+RangePow = 6,9
+K = 2,3
+L = 20,50
+Sparsity = 1,0.005,1,1
+
+Batchsize = 32
+Rehash=320
+Rebuild=3200
+InputDim = 5000
+totRecords = 15539
+totRecordsTest = 3809
+
+BUCKETSIZE = 512
+binsize = 8
+isBruteForce = 0
+NNSorMPS = 0
+BFnumber = 0
+
+isMPWTA = 0
+
+isRandom = 0
+
+isExtLog = 1
+
+isLog = 0
+
+
+Lr=0.0001
+Epoch=30
+Stepsize=100
+
+sizesOfLayers=256,3993
+numLayer=2
+
+LoadWeight=1
+epochInit=24
+
+trainData=../dataset/Eurlex/eurlex_train.txt
+testData=../dataset/Eurlex/eurlex_test.txt
+
+weight=../dataset/eurlex-50ht/savedWeights.npz
+savedweight=../dataset/eurlex-50ht/savedWeights.npz
+
+logFile=../dataset/eurlex-50ht/log.txt
+logFile=../dataset/eurlex-50ht/log.txt
+
+retrivalfile=../dataset/eurlex-50ht/retrival.txt

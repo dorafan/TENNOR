@@ -1,0 +1,47 @@
+RangePow = 6,15
+K = 2,5
+L = 1,1
+Sparsity = 1,0.005,1,1
+
+Batchsize = 128
+Rehash=6400
+Rebuild=128000
+InputDim = 1617899
+totRecords = 1778351
+totRecordsTest = 587084
+
+BUCKETSIZE = 256
+binsize = 8
+isBruteForce = 0
+NNSorMPS = 0
+BFnumber = 0
+
+isMPWTA = 1
+
+isRandom = 0
+
+isExtLog = 1
+
+isLog = 0
+
+
+Lr=0.0001
+Epoch=30
+Stepsize=1000
+
+sizesOfLayers=128,325056
+numLayer=2
+
+LoadWeight=0
+epochInit=0
+
+trainData=../SLIDE-MP/dataset/Wiki325/train.txt
+testData=../SLIDE-MP/dataset/Wiki325/test.txt
+
+weight=../SLIDE-MP/dataset/wiki325-mp-1ht/savedWeights.npz
+savedweight=../SLIDE-MP/dataset/wiki325-mp-1ht/savedWeights.npz
+
+logFile=../SLIDE-MP/dataset/wiki325-mp-1ht/log.txt
+logFile=../SLIDE-MP/dataset/wiki325-mp-1ht/log.txt
+
+retrivalfile=../SLIDE-MP/dataset/wiki325-mp-1ht/retrival.txt

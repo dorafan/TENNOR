@@ -1,0 +1,44 @@
+RangePow = 6,18
+K = 2,6
+L = 20,50
+Sparsity = 1,0.005,1,1
+
+Batchsize = 128
+Rehash=6400
+Rebuild=128000
+InputDim = 135909
+totRecords = 490449
+totRecordsTest = 153025
+
+BUCKETSIZE = 256
+binsize = 8
+isBruteForce = 0
+NNSorMPS = 0
+
+isMPWTA = 0
+
+isRandom = 0
+
+isExtLog = 0
+
+isLog = 1
+
+
+Lr=0.0001
+Epoch=10
+Stepsize=1000
+
+sizesOfLayers=128,670091
+numLayer=2
+
+LoadWeight=0
+epochInit=0
+
+trainData=../dataset/Amazon/train.txt
+testData=../dataset/Amazon/test.txt
+
+weight=../dataset/savedWeights.npz
+savedweight=../dataset/savedWeights.npz
+
+logFile=../dataset/log.txt
+logFile=../dataset/log.txt

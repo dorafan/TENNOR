@@ -1,0 +1,30 @@
+RangePow = 6,18
+K = 2,6
+L = 20,5
+Sparsity = 1,0.005,1,1
+
+Batchsize = 64
+Rehash=3200
+Rebuild=51200
+InputDim = 782585
+totRecords = 196606
+totRecordsTest = 100095
+
+Lr=0.0001
+Epoch=10
+Stepsize=400
+
+sizesOfLayers=256,205443
+numLayer=2
+
+LoadWeight=1
+epochInit=1
+
+trainData=../dataset/Delicious/train.txt
+testData=../dataset/Delicious/test.txt
+
+weight=../dataset/savedWeights.npz
+savedweight=../dataset/savedWeights.npz
+
+logFile=../dataset/log.txt
+logFile=../dataset/log.txt

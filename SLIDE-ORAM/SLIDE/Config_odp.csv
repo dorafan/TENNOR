@@ -1,0 +1,31 @@
+RangePow = 3,15
+K = 1,5
+L = 1,50
+Sparsity = 1,0.005,1,1
+
+ORAM_N = 2097152
+
+Batchsize = 5
+Rehash=6400
+Rebuild=128000
+InputDim = 422713
+totRecords = 1084404
+totRecordsTest = 493014
+
+Lr=0.0001
+Epoch=1
+Stepsize=1000
+
+sizesOfLayers=128,105033
+numLayer=2
+
+trainData=../dataset/ODP/train.txt
+testData=../dataset/ODP/test.txt
+
+weight=../dataset/ODP/savedWeights.npz
+savedweight=../dataset/ODP/savedWeights.npz
+
+logFile=../dataset/ODP/log.txt
+logFile=../dataset/ODP/log.txt
+
+retrivalfile=../dataset/ODP/retrival.txt

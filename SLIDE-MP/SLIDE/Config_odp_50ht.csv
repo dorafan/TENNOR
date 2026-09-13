@@ -1,0 +1,46 @@
+RangePow = 3,12
+K = 1,4
+L = 1,50
+Sparsity = 1,0.005,1,1
+
+Batchsize = 128
+
+Rehash=6400
+Rebuild=128000
+
+InputDim = 422713
+totRecords = 1084404
+totRecordsTest = 493014
+
+BUCKETSIZE = 128
+binsize = 8
+isBruteForce = 0
+NNSorMPS = 0
+BFnumber = 0
+
+isMPWTA = 1
+
+isRandom = 0
+isExtLog = 0
+isLog = 0
+
+Lr=0.0001
+Epoch=30
+Stepsize=1000
+
+sizesOfLayers=128,105033
+numLayer=2
+
+LoadWeight=0
+epochInit=0
+
+trainData=../dataset/ODP/train.txt
+testData=../dataset/ODP/test.txt
+
+weight=../dataset/result-ODP/savedWeights.npz
+savedweight=../dataset/result-ODP/savedWeights.npz
+
+logFile=../dataset/result-ODP/log.txt
+logFile=../dataset/result-ODP/log.txt
+
+retrivalfile=../dataset/result-ODP/retrival.txt

@@ -1,0 +1,48 @@
+RangePow = 3,15
+K = 1,5
+L = 1,1
+Sparsity = 1,0.005,1,1
+
+Batchsize = 32
+Rehash=6400
+Rebuild=128000
+InputDim = 1617899
+totRecords = 1778351
+totRecordsTest = 587084
+
+BUCKETSIZE = 128
+binsize = 8
+isBruteForce = 0
+NNSorMPS = 0
+BFnumber = 0
+
+isMPWTA = 1
+
+isRandom = 0
+
+isExtLog = 1
+
+isLog = 1
+
+threatNum = 44
+
+Lr=0.0001
+Epoch=2
+Stepsize=1000
+
+sizesOfLayers=128,325056
+numLayer=2
+
+LoadWeight=0
+epochInit=0
+
+trainData=../dataset/Wiki325/train.txt
+testData=../dataset/Wiki325/test.txt
+
+weight=../dataset/savedWeights.npz
+savedweight=../dataset/savedWeights.npz
+
+logFile=../dataset/w325_log.txt
+logFile=../dataset/w325_log.txt
+
+retrivalfile=../dataset/w325_retrival.txt

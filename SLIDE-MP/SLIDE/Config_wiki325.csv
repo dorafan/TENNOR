@@ -1,0 +1,27 @@
+RangePow = 6,18
+K = 2,6
+L = 20,1
+Sparsity = 1,0.005,1,1
+
+Batchsize = 128
+Rehash=6400
+Rebuild=128000
+InputDim = 1617899
+totRecords = 1778351
+totRecordsTest = 587084
+
+Lr=0.0001
+Epoch=10
+Stepsize=1000
+
+sizesOfLayers=128,325056
+numLayer=2
+
+trainData=../dataset/Wiki325/train.txt
+testData=../dataset/Wiki325/test.txt
+
+weight=../dataset/savedWeights.npz
+savedweight=../dataset/savedWeights.npz
+
+logFile=../dataset/log.txt
+logFile=../dataset/log.txt

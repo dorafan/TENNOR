@@ -1,0 +1,47 @@
+RangePow = 3,12
+K = 1,4
+L = 1,1
+Sparsity = 1,0.005,1,1
+
+Batchsize = 128
+Rehash=6400
+Rebuild=12800
+InputDim = 135909
+totRecords = 42438
+totRecordsTest = 91080
+
+BUCKETSIZE = 256
+binsize = 8
+isBruteForce = 0
+NNSorMPS = 0
+BFnumber = 0
+
+isMPWTA = 1
+
+isRandom = 0
+
+isExtLog = 1
+
+isLog = 0
+
+
+Lr=0.0001
+Epoch=30
+Stepsize=1000
+
+sizesOfLayers=128,92814
+numLayer=2
+
+LoadWeight=0
+epochInit=0
+
+trainData=../dataset/AmzPrime/train.txt
+testData=../dataset/AmzPrime/test.txt
+
+weight=../dataset/AmzPrime/mp/savedWeights.npz
+savedweight=../dataset/AmzPrime/mp/savedWeights.npz
+
+logFile=../dataset/AmzPrime/mp/log.txt
+logFile=../dataset/AmzPrime/mp/log.txt
+
+retrivalfile=../dataset/AmzPrime/mp/retrival.txt

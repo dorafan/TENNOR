@@ -1,0 +1,45 @@
+RangePow = 6,9
+K = 2,3
+L = 20,50
+Sparsity = 1,0.005,1,1
+
+Batchsize = 32
+Rehash=320
+Rebuild=3200
+InputDim = 101938
+totRecords = 14146
+totRecordsTest = 6616
+
+BUCKETSIZE = 512
+binsize = 8
+isBruteForce = 0
+NNSorMPS = 0
+BFnumber = 0
+
+isMPWTA = 0
+
+isRandom = 0
+
+isExtLog = 0
+
+isLog = 0
+
+
+Lr=0.0001
+Epoch=30
+Stepsize=100
+
+sizesOfLayers=256,30938
+numLayer=2
+
+LoadWeight=0
+epochInit=0
+
+trainData=../dataset/Wiki10/train.txt
+testData=../dataset/Wiki10/test.txt
+
+weight=../dataset//savedWeights.npz
+savedweight=../dataset/savedWeights.npz
+
+logFile=../dataset/log.txt
+logFile=../dataset/log.txt
