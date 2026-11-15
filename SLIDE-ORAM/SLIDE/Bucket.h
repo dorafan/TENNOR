@@ -5,7 +5,6 @@ class Bucket
 {
 private:
 
-
 public:
     int *arr;
     int isInit = -1;
@@ -22,9 +21,7 @@ public:
 	int getSize();
 	~Bucket();
 
-
-    std::string serialize() const;
-    void deserialize(const std::string& buffer);
+    std::string serialize() const;                
+    void deserialize(const std::string& buffer);  
 };
-
 

@@ -40,9 +40,8 @@ SparseRandomProjection::SparseRandomProjection(int dimension, int numOfHashes, i
 
 
 int *SparseRandomProjection::getHash(float *vector, int length) {
-
+    // length should be = to _dim
     int *hashes = new int[_numhashes];
-
 
     for (int i = 0; i < _numhashes; i++) {
         double s = 0;

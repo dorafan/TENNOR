@@ -8,7 +8,9 @@
 #include <vector>
 #include <string.h>
 #include "MurmurHash.h"
-
+/*
+*  Algorithm from the paper Densified Winner Take All (WTA) Hashing for Sparse Datasets. Beidi Chen, Anshumali Shrivastava
+*/
 using namespace std;
 class DensifiedWtaHash
 {

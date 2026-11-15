@@ -12,17 +12,11 @@ private:
 	int _RangePow;
 	int *rand1;
 
-
 public:
     Bucket ** _bucket;
 	LSH(int K, int L, int RangePow);
 	void clear();
-
-
 	int * hashesToIndex(int * hashes);
-
-
-
 	int retrieve(int table, int indices, int bucket);
 	void count();
 	~LSH();

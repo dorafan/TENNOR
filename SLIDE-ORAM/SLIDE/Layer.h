@@ -16,7 +16,7 @@ private:
 	Node** _Nodes;
 	int * _randNode;
 	float* _normalizationConstants;
-    int*_inputIDs;
+    int*_inputIDs; //needed for SOFTMAX
 
 
 

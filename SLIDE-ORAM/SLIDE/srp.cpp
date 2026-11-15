@@ -38,11 +38,9 @@ SparseRandomProjection::SparseRandomProjection(int dimension, int numOfHashes, i
     delete [] a;
 }
 
-
 int *SparseRandomProjection::getHash(float *vector, int length) {
-
+    // length should be = to _dim
     int *hashes = new int[_numhashes];
-
 
     for (int i = 0; i < _numhashes; i++) {
         double s = 0;
@@ -58,7 +56,6 @@ int *SparseRandomProjection::getHash(float *vector, int length) {
     }
     return hashes;
 }
-
 
 int *SparseRandomProjection::getHashSparse(int* indices, float *values, int length) {
     int *hashes = new int[_numhashes];
@@ -90,7 +87,6 @@ int *SparseRandomProjection::getHashSparse(int* indices, float *values, int leng
 
     return hashes;
 }
-
 
 SparseRandomProjection::~SparseRandomProjection() {
     for (size_t i = 0; i < _numhashes; i++) {

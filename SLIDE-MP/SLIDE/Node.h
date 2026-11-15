@@ -27,7 +27,7 @@ public:
 	float* _mirrorWeights;
 	float* _adamAvgMom;
 	float* _adamAvgVel;
-	float* _t;
+	float* _t; //for adam
 	int* _update;
 	float _bias =0;
 	float _tbias = 0;
@@ -47,8 +47,7 @@ public:
 	void backPropagateFirstLayer(int* nnzindices, float* nnzvalues, int nnzSize, float learningRate, int inputID);
 	~Node();
 
-
-
+	//only for debugging
 	float purturbWeight(int weightid, float delta);
 	float getGradient(int weightid, int inputID, float InputVal);
 };

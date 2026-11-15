@@ -12,27 +12,25 @@ uint32_t MurmurHash (const char *key, uint32_t len, uint32_t seed) {
   uint32_t n = 0xe6546b64;
   uint32_t h = 0;
   uint32_t k = 0;
-  uint8_t *d = (uint8_t *) key;
+  uint8_t *d = (uint8_t *) key; 
   const uint32_t *chunks = NULL;
-  const uint8_t *tail = NULL;
+  const uint8_t *tail = NULL; 
   int i = 0;
-  int l = len / 4;
+  int l = len / 4; 
 
   h = seed;
 
-  chunks = (const uint32_t *) (d + l * 4);
-  tail = (const uint8_t *) (d + l * 4);
+  chunks = (const uint32_t *) (d + l * 4); 
+  tail = (const uint8_t *) (d + l * 4); 
 
-
+  // for each 4 byte chunk of `key'
   for (i = -l; i != 0; ++i) {
-
     k = chunks[i];
 
-
+    // encode next 4 byte chunk of `key'
     k *= c1;
     k = (k << r1) | (k >> (32 - r1));
     k *= c2;
-
 
     h ^= k;
     h = (h << r2) | (h >> (32 - r2));
@@ -41,8 +39,7 @@ uint32_t MurmurHash (const char *key, uint32_t len, uint32_t seed) {
 
   k = 0;
 
-
-  switch (len & 3) {
+  switch (len & 3) { // `len % 4'
     case 3: k ^= (tail[2] << 16);
     case 2: k ^= (tail[1] << 8);
 

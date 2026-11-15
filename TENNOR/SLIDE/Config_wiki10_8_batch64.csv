@@ -20,7 +20,7 @@ isMPWTA = 1
 
 isRandom = 0
 
-isExtLog = 0
+isHopper = 0
 
 isLog = 1
 
@@ -40,8 +40,7 @@ epochInit=0
 trainData=../dataset/Wiki10/train.txt
 testData=../dataset/Wiki10/test.txt
 
-weight=../dataset/w10_savedWeights.npz
-savedweight=../dataset/w10_savedWeights.npz
+weight=../dataset/savedWeights.npz
+savedweight=../dataset/savedWeights.npz
 
-logFile=../dataset/w10_log.txt
-logFile=../dataset/w10_log.txt
+logFile=../dataset/training.log

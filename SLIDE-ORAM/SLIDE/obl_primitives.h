@@ -1,10 +1,8 @@
+// Created by Zifan .
 
-
-
-
-
-
-
+/*
+ * Modifications Copyright 2020 by Secure XGBoost Contributors
+ */
 #pragma once
 #include <cstddef>
 #include <cstdint>
@@ -12,33 +10,21 @@
 #include <cstring>
 #include <cstdlib>
 
-
-
-
-
-
-
+// Detect x86/x64 so we know when inline asm and AVX2 are available.
 #if defined(__x86_64__) || defined(_M_X64) || \
     defined(__i386__)  || defined(_M_IX86)
 #define SNOOPY_X86 1
 #endif
 
-
+// Enable AVX2 helpers only on x86 with AVX2 enabled and OHT_SNOOPY_AVX2 requested.
 #if defined(OHT_SNOOPY_AVX2) && defined(SNOOPY_X86) && defined(__AVX2__)
 #include <immintrin.h>
 #define SNOOPY_HAS_AVX2 1
 #endif
 
-
-
-
 namespace snoopy {
 
-
-
-
     constexpr size_t CACHE_LINE_SIZE = 64;
-
 
     template <typename T>
     inline bool ObliviousLess(const T &x, const T &y);
@@ -55,16 +41,8 @@ namespace snoopy {
     template <typename T, typename std::enable_if<std::is_scalar<T>::value, int>::type = 0>
     inline bool ObliviousEqual(T x, T y);
 
-
-
-
-
-
-
     template <typename T>
     inline void ObliviousAssign(bool pred, const T &t_val, const T &f_val, T *out);
-
-
 
     template <typename T>
     inline T ObliviousChoose(bool pred, const T &t_val, const T &f_val);
@@ -97,8 +75,7 @@ namespace snoopy {
 
     inline void ObliviousArrayAssignBytes(void *array, const void *src, size_t nbytes, size_t i, size_t n);
 
-}
-
+}  // namespace snoopy
 
 namespace snoopy::obl {
 
@@ -116,33 +93,9 @@ namespace snoopy::obl {
         return result;
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
     template <typename T, typename std::enable_if<std::is_floating_point<T>::value, int>::type = 0>
     inline bool LessImpl(T x, T y) {
         return x < y;
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 
@@ -183,7 +136,7 @@ namespace snoopy::obl {
         }
     };
 
-}
+}  // namespace snoopy::obl
 
 namespace snoopy {
 
@@ -219,22 +172,10 @@ namespace snoopy {
         return result;
     }
 
-
-
-
-
-
-
-
-
-
     template <typename T>
     inline void ObliviousAssign(bool pred, const T &t_val, const T &f_val, T *out) {
         return obl::ObliviousBytesAssign(pred, sizeof(T), &t_val, &f_val, out);
     }
-
-
-
 
     template <typename T>
     inline T ObliviousChoose(bool pred, const T &t_val, const T &f_val) {
@@ -264,7 +205,6 @@ namespace snoopy {
         return ObliviousSort(begin, end, obl::less<value_type>());
     }
 
-
     template <typename T>
     inline T ObliviousArrayAccess(const T *arr, size_t i, size_t n) {
         T result = arr[0];
@@ -283,18 +223,18 @@ namespace snoopy {
     }
 
 #ifdef OHT_SNOOPY_AVX2
-
-
-
+    /**
+ *  Vectorized oblivious array operation helpers
+ */
 inline int _mm256_extract_epi32_var_indx(__m256i vec, int i) {
   __m128i indx = _mm_cvtsi32_si128(i);
   __m256i shuffled = _mm256_permutevar8x32_epi32(vec, _mm256_castsi128_si256(indx));
   return _mm_cvtsi128_si32(_mm256_castsi256_si128(shuffled));
 }
 inline float _mm256_extract_ps_var_indx(__m256 vec, int i) {
-  __m128i vidx = _mm_cvtsi32_si128(i);
-  __m256i vidx256 = _mm256_castsi128_si256(vidx);
-  __m256 shuffled = _mm256_permutevar8x32_ps(vec, vidx256);
+  __m128i vidx = _mm_cvtsi32_si128(i);                       // vmovd
+  __m256i vidx256 = _mm256_castsi128_si256(vidx);            // no instructions
+  __m256 shuffled = _mm256_permutevar8x32_ps(vec, vidx256);  // vpermps
   return _mm256_cvtss_f32(shuffled);
 }
 inline int _mm_extract_epi32_var_indx(__m128i vec, int i) {
@@ -370,32 +310,32 @@ inline float ObliviousArrayAccess(const float *arr, size_t i, size_t n) {
   return ObliviousArrayAccessSimd(arr, i, n);
 }
 
-
-
+// Vectorized access into int or float array. Implemented as described in Oblivious Multi-Party Machine Learning paper
+// (Ohrimenko et al.)
 template <typename T>
 inline T ObliviousArrayAccessSimd(const T *arr, size_t i, size_t n) {
   T retval;
 
-
+  // number of elements per cache line
   int elem_per_cache_line = CACHE_LINE_SIZE / 4;
 
-
+  // offset into the cache line
   int cache_line_offset = i % elem_per_cache_line;
 
   size_t j = 0;
-
+  // Gather 8 cache lines at a time
   {
+    // can jump ahead CACHE_LINE_SIZE * (256 / (sizeof(T) * 8)) bytes per gather...
+    size_t step_size = elem_per_cache_line * 8;  // number of elements we can effectively scan per `gather`
 
-    size_t step_size = elem_per_cache_line * 8;
-
-
+    // the index of the gather that will yield the target
     size_t m = i / step_size;
 
-
+    // offset into the temporary scanning vector register
     size_t vector_offset = (i % step_size) / elem_per_cache_line;
 
-
-
+    // gather instruction selects at memory addresses (base + IDX * scale)
+    // VPGATHERDD __m128i _mm_i32gather_epi32 (int const * base, __m128i index, const int scale);
 
     __m256i indices;
     __m256i scanned;
@@ -414,19 +354,19 @@ inline T ObliviousArrayAccessSimd(const T *arr, size_t i, size_t n) {
     }
   }
 
-
+  // Gather 4 cache lines at a time
   {
+    // can jump ahead CACHE_LINE_SIZE * (128 / (sizeof(T) * 8)) bytes per gather...
+    size_t step_size = elem_per_cache_line * 4;  // number of elements we can effectively scan per `gather`
 
-    size_t step_size = elem_per_cache_line * 4;
-
-
+    // the index of the gather that will yield the target
     size_t m = i / step_size;
 
-
+    // offset into the temporary scanning vector register
     size_t vector_offset = (i % step_size) / elem_per_cache_line;
 
-
-
+    // gather instruction selects at memory addresses (base + IDX * scale)
+    // VPGATHERDD __m128i _mm_i32gather_epi32 (int const * base, __m128i index, const int scale);
 
     __m128i indices;
     __m128i scanned;
@@ -443,7 +383,7 @@ inline T ObliviousArrayAccessSimd(const T *arr, size_t i, size_t n) {
     }
   }
 
-
+  // Take care of remaining elements
   size_t step = CACHE_LINE_SIZE / 4;
   for (; j < n; j += step) {
     bool cond = ObliviousEqual(j / step, i / step);
@@ -455,7 +395,6 @@ inline T ObliviousArrayAccessSimd(const T *arr, size_t i, size_t n) {
   return retval;
 }
 #endif
-
 
     template <typename T>
     inline void ObliviousArrayAssign(T *arr, size_t i, size_t n, const T &val) {
@@ -472,7 +411,7 @@ inline T ObliviousArrayAccessSimd(const T *arr, size_t i, size_t n) {
         }
     }
 
-}
+}  // namespace snoopy
 
 namespace snoopy::detail {
 
@@ -493,7 +432,7 @@ namespace snoopy::detail {
         return k;
     }
 
-
+// Imperative implementation of bitonic merge network
     template <typename T, typename Comparator>
     inline void imperative_o_merge(T *arr, uint32_t low, uint32_t len, Comparator cmp) {
         uint32_t i, j, k;
@@ -506,8 +445,8 @@ namespace snoopy::detail {
                     uint32_t i2 = i1 + (n >> i) / 2;
                     if (i2 >= low + len) break;
                     bool pred = cmp(arr[i2], arr[i1]);
-
-
+                    // These array accesses are oblivious because the indices are
+                    // deterministic
                     T tmp = arr[i1];
                     arr[i1] = ObliviousChoose(pred, arr[i2], arr[i1]);
                     arr[i2] = ObliviousChoose(pred, tmp, arr[i2]);
@@ -516,8 +455,8 @@ namespace snoopy::detail {
         }
     }
 
-
-
+// Imperative implementation of bitonic sorting network -- works only for powers
+// of 2
     template <typename T, typename Comparator>
     inline void imperative_o_sort(T *arr, size_t n, Comparator cmp) {
         uint32_t i, j, k;
@@ -528,15 +467,15 @@ namespace snoopy::detail {
                     if (ij > i) {
                         if ((i & k) == 0) {
                             bool pred = cmp(arr[ij], arr[i]);
-
-
+                            // These array accesses are oblivious because the indices are
+                            // deterministic
                             T tmp = arr[i];
                             arr[i] = ObliviousChoose(pred, arr[ij], arr[i]);
                             arr[ij] = ObliviousChoose(pred, tmp, arr[ij]);
                         } else {
                             bool pred = cmp(arr[i], arr[ij]);
-
-
+                            // These array accesses are oblivious because the indices are
+                            // deterministic
                             T tmp = arr[i];
                             arr[i] = ObliviousChoose(pred, arr[ij], arr[i]);
                             arr[ij] = ObliviousChoose(pred, tmp, arr[ij]);
@@ -547,7 +486,7 @@ namespace snoopy::detail {
         }
     }
 
-
+// Sort <len> elements in arr -- starting from index arr[low]
     template <typename T, typename Comparator>
     inline void o_sort(T *arr, uint32_t low, uint32_t len, Comparator cmp) {
         if (len > 1) {
@@ -572,8 +511,8 @@ namespace snoopy::detail {
             return;
         }
 
-
-
+        // Step 1: Iterate through array and label with number of cells
+        // to be moved left to be tightly compacted (L to R scan).
         uint8_t one_u8 = 1;
         uint32_t one_u32 = 1;
         uint8_t zero_u8 = 0;
@@ -587,8 +526,8 @@ namespace snoopy::detail {
             ctr = ObliviousChoose(pred, next_ctr, ctr);
         }
 
-
-
+        // Step 2: Go through each level, at cell j on level L_i with
+        // distance label d_j, route contents of j to j - (d_j mod 2^{i+1})
         uint32_t levels = log2_ceil(len);
         for (uint32_t i = 0; i < levels; i++) {
             uint32_t mod_val = 1 << (i + 1);
@@ -618,7 +557,7 @@ namespace snoopy::detail {
         }
     }
 
-}
+}  // namespace snoopy::detail
 
 namespace snoopy {
 
@@ -643,7 +582,7 @@ namespace snoopy {
         return detail::o_compact<value_type>(array, tags, end - begin);
     }
 
-}
+}  // namespace snoopy
 
 namespace snoopy::obl {
 
@@ -677,7 +616,7 @@ namespace snoopy::obl {
     }
 
 #ifdef OHT_SNOOPY_AVX2
-
+    // Obliviously assigns 32 bytes starting from the address of (cond) ? t_val : f_val into out
 template <typename T>
 inline void ObliviousAssignHelper32(bool cond, T &t_val, T &f_val, T *out) {
   __m256i mask = _mm256_set1_epi64x((int)cond * -1);
@@ -687,7 +626,7 @@ inline void ObliviousAssignHelper32(bool cond, T &t_val, T &f_val, T *out) {
   _mm256_storeu_si256((__m256i *)out, result_vector);
 }
 
-
+// Obliviously assigns 16 bytes starting from the address of (cond) ? t_val : f_val into out
 template <typename T>
 inline void ObliviousAssignHelper16(bool cond, T &t_val, T &f_val, T *out) {
   __m128i mask = _mm_set1_epi64x((int)cond * -1);
@@ -705,7 +644,7 @@ inline void ObliviousAssignHelper16(bool cond, T &t_val, T &f_val, T *out) {
         char *f = (char *)f_val;
 
 #ifdef OHT_SNOOPY_AVX2
-
+        // Obliviously assign 32 bytes at a time
   size_t num_32_iter = bytes / 32;
   for (size_t i = 0; i < num_32_iter; i++) {
     ObliviousAssignHelper32(pred, *t, *f, res);
@@ -714,7 +653,7 @@ inline void ObliviousAssignHelper16(bool cond, T &t_val, T &f_val, T *out) {
     f += 32;
   }
 
-
+  // Obliviously assign 16 bytes
   if ((bytes % 32) / 16) {
     ObliviousAssignHelper16(pred, *t, *f, res);
     res += 16;
@@ -722,7 +661,7 @@ inline void ObliviousAssignHelper16(bool cond, T &t_val, T &f_val, T *out) {
     f += 16;
   }
 
-
+  // Obliviously assign 8 bytes
   if ((bytes % 16) / 8) {
     ObliviousAssignHelper(pred, *((uint64_t *)t), *((uint64_t *)f), (uint64_t *)res);
     res += 8;
@@ -730,7 +669,7 @@ inline void ObliviousAssignHelper16(bool cond, T &t_val, T &f_val, T *out) {
     f += 8;
   }
 #else
-
+        // Obliviously assign 8 bytes at a time
         size_t num_8_iter = bytes / 8;
         for (size_t i = 0; i < num_8_iter; i++) {
             ObliviousAssignHelper(pred, *((uint64_t *)t), *((uint64_t *)f), (uint64_t *)res);
@@ -740,7 +679,7 @@ inline void ObliviousAssignHelper16(bool cond, T &t_val, T &f_val, T *out) {
         }
 #endif
 
-
+        // Obliviously assign 4 bytes
         if ((bytes % 8) / 4) {
             ObliviousAssignHelper(pred, *((uint32_t *)t), *((uint32_t *)f), (uint32_t *)res);
             res += 4;
@@ -748,7 +687,7 @@ inline void ObliviousAssignHelper16(bool cond, T &t_val, T &f_val, T *out) {
             f += 4;
         }
 
-
+        // Obliviously assign 2 bytes
         if ((bytes % 4) / 2) {
             ObliviousAssignHelper(pred, *((uint16_t *)t), *((uint16_t *)f), (uint16_t *)res);
             res += 2;
@@ -756,11 +695,10 @@ inline void ObliviousAssignHelper16(bool cond, T &t_val, T &f_val, T *out) {
             f += 2;
         }
 
-
+        // Obliviously assign 1 byte
         if ((bytes % 2)) {
             ObliviousAssignHelper(pred, *((uint8_t *)t), *((uint8_t *)f), (uint8_t *)res);
         }
     }
 
-}
-
+}  // namespace snoopy::obl

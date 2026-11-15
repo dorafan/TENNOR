@@ -18,9 +18,6 @@
 
 #include "obl.h"
 
-
-
-
 template <int N_value>
 class PathORAM {
 public:
@@ -47,38 +44,33 @@ public:
         client->write(server, uid, data);
     }
 
-
     long long getEvictionTime() const {
         return client->evictionTime;
     }
-
 
     static const int computeLog2(int n) {
         return (n <= 1) ? 0 : 1 + computeLog2(n / 2);
     }
 
-
-    static const int N = N_value;
-    static const int numNodes = N * 2 - 1;
-    static const int BUCKET_SIZE = 4;
-    static const std::string DUMMY;
-
+    static const int N = N_value;// Tree size must be a power of two.
+    static const int numNodes = N * 2 - 1; // number of nodes in tree ~2N
+    static const int BUCKET_SIZE = 4; 
+    static const std::string DUMMY; // Dummy data stored in dummy blocks
 
     static const int PATHSIZE;
 
-    static const int KEY_SIZE = 256;
+    static const int KEY_SIZE = 256; // for AES
     static const int IV_SIZE = 128;
     static const int BYTE_SIZE = 8;
     static const int BUFFER_SIZE = 2 * 1024;
-    static const bool ENCRYPTION = false;
+    static const bool ENCRYPTION = false;  // turn encryption on/off, helpful for debugging
 
 private:
 
-
     class Block {
     public:
-        int uid;
-        int leaf;
+        int uid; // unique identifier
+        int leaf; // leaf each block is pointing to 
         std::string data;
 
         bool encrypted;
@@ -113,7 +105,7 @@ private:
             std::string leaf_string = std::to_string(leaf);
             std::string payload = uid_string + "," + leaf_string + "," + data;
 
-            data = payload;
+            data = payload; 
         }
 
         void breakPayload() {
@@ -143,13 +135,13 @@ private:
 
         void easy_encrypt(unsigned char* key) {
             if (ENCRYPTION) {
-
+                // Implement encryption here
             }
         }
 
         void easy_decrypt(unsigned char* key) {
             if (ENCRYPTION) {
-
+                // Implement decryption here
             }
         }
 
@@ -170,11 +162,11 @@ private:
 
     class Bucket {
     public:
-        Block* blocks[BUCKET_SIZE];
+        Block* blocks[BUCKET_SIZE]; 
 
         Bucket() {
             for (int i = 0; i < BUCKET_SIZE; i++) {
-                blocks[i] = new Block();
+                blocks[i] = new Block();  // initialize dummy blocks for bucket
             }
         }
 
@@ -185,7 +177,7 @@ private:
         }
 
         int findDummyIndex() {
-
+//            make it oblivious
             int tmp = -1;
             for (int i = 0; i < BUCKET_SIZE; i++) {
                 if (blocks[i]->uid == -1) {
@@ -221,10 +213,10 @@ private:
     class Node {
     public:
         Bucket* bucket;
-        bool isLeaf;
+        bool isLeaf; 
 
         Node(int index) {
-            isLeaf = checkLeaf(index);
+            isLeaf = checkLeaf(index); 
             bucket = new Bucket();
         }
 
@@ -292,20 +284,17 @@ private:
 
     class Client {
     public:
-        std::map<int, int> position_map;
+        std::map<int, int> position_map; // client will store position map
         std::vector<Block*> stash;
 
         unsigned char key[KEY_SIZE / BYTE_SIZE];
 
-
         long long evictionTime;
-
 
         Client() : evictionTime(0) {
             position_map.clear();
 
         }
-
 
         ~Client() {
             position_map.clear();
@@ -317,45 +306,32 @@ private:
             stash.shrink_to_fit();
         }
 
-
+        // Simulate oblivious-copy time without copying data.
         static void simulatedObliviousCopySize(size_t units) {
-
-
-
-
-
-
-
-
-
-
-
 
             if (units == 0) {
                 units = 1;
             }
 
-
+            // acc 声明成 volatile，避免被优化掉
             volatile int acc = 0;
-
 
             int x = 0x12345678;
             int y = 0x9abcdef0;
 
             for (size_t i = 0; i < units; ++i) {
-
+                // cond 必须是 0/1
                 int cond = static_cast<int>(i & 1);
-
 
                 int chosen = obl::OblChoose(cond, x, y);
 
-
+                // 做一点简单计算，避免编译器把它当成死代码
                 acc ^= chosen;
                 x ^= chosen;
                 y += cond;
             }
 
-            (void)acc;
+            (void)acc; 
         }
 
         static void simulatedObliviousCopyString(const std::string &s) {
@@ -367,13 +343,12 @@ private:
                 simulatedObliviousCopySize(1);
                 return;
             }
-
+            // Approximate total bytes: data + iv + ciphertext buffer.
             size_t totalBytes = b->data.size()
                               + (IV_SIZE / BYTE_SIZE)
                               + BUFFER_SIZE;
             simulatedObliviousCopySize(totalBytes);
         }
-
 
         void initServer(Server* s) {
             for (int i = 0; i < numNodes; i++) {
@@ -458,18 +433,16 @@ private:
             stash.insert(stash.begin(), newFront);
         }
 
-
-
-
+//        make the read and write oblivious
 
         int getLeafOblivious(int uid) {
             int foundLeaf = -1;
-
+            // Scan every entry in the map
             for (auto & it : position_map) {
                 if (it.first == uid) {
                     foundLeaf = it.second;
                 } else {
-
+                    // Dummy read
                     (void) it.second;
                 }
 
@@ -480,17 +453,16 @@ private:
                 int tmp = obl::OblChoose(pred, value, value);
             }
 
-
             return foundLeaf;
         }
 
         void setLeafOblivious(int uid, int newLeaf) {
-
+            // Scan every entry in the map
             for (auto it = position_map.begin(); it != position_map.end(); ++it) {
                 if (it->first == uid) {
                     it->second = newLeaf;
                 } else {
-
+                    // Dummy read
                     (void) it->second;
                 }
 
@@ -502,17 +474,13 @@ private:
             }
         }
 
-
-
         std::string read(Server* s, int uid) {
-
 
             int oldLeaf = getLeafOblivious(uid);
             if (oldLeaf == -1) {
 
                 return "";
             }
-
 
             fillStash(s, oldLeaf);
             Block* found = nullptr;
@@ -533,10 +501,9 @@ private:
 
             setLeafOblivious(uid, newLeaf);
 
-
             found->leaf = newLeaf;
 
-
+            // Simulate copying the accessed block (time only).
             for (Block* i : stash) {
                 int tmp = obl::OblEq(i->uid, uid);
                 simulatedObliviousCopyBlock(found);
@@ -548,7 +515,7 @@ private:
         }
 
         void write(Server* s, int uid, const std::string& data) {
-
+            // Simulate copying the plaintext being written (time only).
             for (Block* i : stash){
                  int tmp = obl::OblEq(i->uid, uid);
                 simulatedObliviousCopyString(data);
@@ -556,23 +523,23 @@ private:
 
             bool alreadyExists = false;
             {
-
-
+                // Linear scan to see if uid is in position_map
+                // plus a dummy read each iteration
                 for (auto it = position_map.begin(); it != position_map.end(); ++it) {
                     if (it->first == uid) {
                         alreadyExists = true;
                     }
-                    (void) it->second;
+                    (void) it->second; // dummy read
                 }
             }
 
             if (!alreadyExists) {
-                position_map[uid] = randomLeaf();
+                position_map[uid] = randomLeaf(); 
                 int leaf = position_map[uid];
 
                 fillStash(s, leaf);
 
-                Block* alpha = new Block(uid, leaf, data);
+                Block* alpha = new Block(uid, leaf, data); 
                 stash.push_back(alpha);
             }
             else{
@@ -608,7 +575,7 @@ private:
                 for (int i = 0; i < size; i++) {
                     Block* curr = stashGetBack();
 
-
+                    // Simulate copying the block into a bucket (time only).
                     simulatedObliviousCopyBlock(curr);
 
                     int common = commonAncestor(curr->leaf, leaf);
@@ -637,10 +604,7 @@ private:
             evictionTime += duration.count();
         }
 
-
-
     };
-
 
     static int smallLeaf() {
         return N - 1;
@@ -718,11 +682,9 @@ private:
         }
     }
 
-
     Server* server;
     Client* client;
 };
-
 
 template <int N_value>
 const std::string PathORAM<N_value>::DUMMY = "Dummy";
@@ -730,5 +692,4 @@ const std::string PathORAM<N_value>::DUMMY = "Dummy";
 template <int N_value>
 const int PathORAM<N_value>::PATHSIZE = (int)(std::log2(PathORAM::N) + 1);
 
-
-#endif
+#endif // PATHORAM_H

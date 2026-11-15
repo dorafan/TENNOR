@@ -9,7 +9,6 @@
 #include "Config.h"
 using namespace std;
 
-
 DensifiedWtaHash::DensifiedWtaHash(int numHashes, int noOfBitsToHash)
 {
 
@@ -53,11 +52,10 @@ DensifiedWtaHash::DensifiedWtaHash(int numHashes, int noOfBitsToHash)
 
 }
 
-
 int * DensifiedWtaHash::getHashEasy(float* data, int dataLen, int topk)
 {
 
-
+    // binsize is the number of times the range is larger than the total number of hashes we need.
 
     int *hashes = new int[_numhashes];
     float *values = new float[_numhashes];
@@ -68,7 +66,6 @@ int * DensifiedWtaHash::getHashEasy(float* data, int dataLen, int topk)
         hashes[i] = INT_MIN;
         values[i] = INT_MIN;
     }
-
 
     for (int p=0; p< _permute; p++) {
         for (size_t i = 0; i < dataLen; i++) {
@@ -98,8 +95,8 @@ int * DensifiedWtaHash::getHashEasy(float* data, int dataLen, int topk)
                     getRandDoubleHash(i, count),
                     _numhashes);
 
-            next = hashes[index];
-            if (count > 100)
+            next = hashes[index]; 
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
@@ -108,7 +105,6 @@ int * DensifiedWtaHash::getHashEasy(float* data, int dataLen, int topk)
     delete[] values;
     return hashArray;
 }
-
 
 int * DensifiedWtaHash::getHash(int* indices, float* data, int dataLen)
 {
@@ -136,7 +132,6 @@ int * DensifiedWtaHash::getHash(int* indices, float* data, int dataLen)
         }
     }
 
-
     for (size_t i = 0; i < _numhashes; i++)
     {
         int next = hashes[i];
@@ -153,8 +148,8 @@ int * DensifiedWtaHash::getHash(int* indices, float* data, int dataLen)
                     getRandDoubleHash(i, count),
                     _numhashes);
 
-            next = hashes[index];
-            if (count > 100)
+            next = hashes[index]; 
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
@@ -164,12 +159,10 @@ int * DensifiedWtaHash::getHash(int* indices, float* data, int dataLen)
     return hashArray;
 }
 
-
 int DensifiedWtaHash::getRandDoubleHash(int binid, int count) {
     unsigned int tohash = ((binid + 1) << 6) + count;
-    return (_randHash[0] * tohash << 3) >> (32 - _lognumhash);
+    return (_randHash[0] * tohash << 3) >> (32 - _lognumhash); // _lognumhash needs to be ceiled.
 }
-
 
 DensifiedWtaHash::~DensifiedWtaHash()
 {

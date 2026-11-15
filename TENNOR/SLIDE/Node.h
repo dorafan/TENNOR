@@ -1,21 +1,16 @@
-
 #pragma once
 #include <stdlib.h>
 #include <assert.h>
 #include <cmath>
 
-
 #include "obl.h"
-
 
 using namespace std;
 
 enum NodeType
 { ReLU, Softmax};
 
-
-
-
+// 只打包需要“条件拷贝”的标量字段（原来用 OblChoose 的那几个）
 struct NodeScalarBlock {
     int      _IDinLayer;
     NodeType _type;
@@ -32,20 +27,12 @@ struct NodeScalarBlock {
     int      isDummy = 0;
 };
 
-
-
 class Node  : public NodeScalarBlock
 {
 private:
-
-
-
+    
 public:
     int owns_weights = 1;
-
-
-
-
 
     float* _lastDeltaforBPs = nullptr;
     float* _lastActivations = nullptr;
@@ -53,26 +40,12 @@ public:
     int _currentBatchsize;
     int _dim;
 
-
-
-
-
     float* _weights = nullptr;
     float* _mirrorWeights = nullptr;
     float* _adamAvgMom = nullptr;
     float* _adamAvgVel = nullptr;
-    float* _t = nullptr;
+    float* _t = nullptr; //for adam
     int* _update = nullptr;
-
-
-
-
-
-
-
-
-
-
 
     float* _lastGradients = nullptr;
     int* _ActiveinputIds = nullptr;
@@ -90,8 +63,7 @@ public:
     void backPropagateFirstLayer(int* nnzindices, float* nnzvalues, int nnzSize, float learningRate, int inputID);
     ~Node();
 
-
-
+    //only for debugging
     float purturbWeight(int weightid, float delta);
     float getGradient(int weightid, int inputID, float InputVal);
 
@@ -103,18 +75,13 @@ public:
 
     Node();
 
-
     static void obl_copy_node(bool pred, Node* sourcenode, Node* destnode);
-
 
     Node(const Node& other);
 
-
     Node& operator=(const Node& other);
 
-
     Node(Node&& other) noexcept;
-
 
     Node& operator=(Node&& other) noexcept;
 
@@ -123,7 +90,5 @@ public:
         _lastDeltaforBPs[inputID] = 0;
         _lastActivations[inputID] = 0;
     }
-
-
 
 };

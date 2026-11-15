@@ -18,9 +18,6 @@
 
 #include "obl.h"
 
-
-
-
 template <int N_value>
 class PathORAM {
 public:
@@ -47,45 +44,34 @@ public:
         client->write(server, uid, data);
     }
 
-
     long long getEvictionTime() const {
         return client->evictionTime;
     }
-
 
     static const int computeLog2(int n) {
         return (n <= 1) ? 0 : 1 + computeLog2(n / 2);
     }
 
-
-    static const int N = N_value;
-    static const int numNodes = N * 2 - 1;
+    static const int N = N_value;// Tree size must be a power of two.
+    static const int numNodes = N * 2 - 1; // number of nodes in tree ~2N
 
     enum { BUCKET_SIZE = 4 };
-    static const std::string DUMMY;
-
+    static const std::string DUMMY; 
 
     static const int PATHSIZE;
 
-    static const int KEY_SIZE = 256;
+    static const int KEY_SIZE = 256; // for AES
     static const int IV_SIZE = 128;
     static const int BYTE_SIZE = 8;
     static const int BUFFER_SIZE = 2 * 1024;
-    static const bool ENCRYPTION = false;
-
-
-
-
-
-
+    static const bool ENCRYPTION = false;  // turn encryption on/off, helpful for debugging
 
 private:
 
-
     class Block {
     public:
-        int uid;
-        int leaf;
+        int uid; // unique identifier
+        int leaf; // leaf each block is pointing to 
         std::string data;
 
         bool encrypted;
@@ -120,7 +106,7 @@ private:
             std::string leaf_string = std::to_string(leaf);
             std::string payload = uid_string + "," + leaf_string + "," + data;
 
-            data = payload;
+            data = payload; 
         }
 
         void breakPayload() {
@@ -150,13 +136,13 @@ private:
 
         void easy_encrypt(unsigned char* key) {
             if (ENCRYPTION) {
-
+                // Implement encryption here
             }
         }
 
         void easy_decrypt(unsigned char* key) {
             if (ENCRYPTION) {
-
+                // Implement decryption here
             }
         }
 
@@ -169,12 +155,6 @@ private:
             }
         }
 
-
-
-
-
-
-
     private:
         void emptyArray(unsigned char emptying[], int size) {
             std::fill_n(emptying, size, 0x00);
@@ -183,11 +163,11 @@ private:
 
     class Bucket {
     public:
-        Block* blocks[BUCKET_SIZE];
+        Block* blocks[BUCKET_SIZE]; 
 
         Bucket() {
             for (int i = 0; i < BUCKET_SIZE; i++) {
-                blocks[i] = new Block();
+                blocks[i] = new Block();  // initialize dummy blocks for bucket
             }
         }
 
@@ -198,14 +178,8 @@ private:
         }
 
         int findDummyIndex() {
-
+//            make it oblivious
             int tmp = -1;
-
-
-
-
-
-
 
             for (int i = 0; i < BUCKET_SIZE; ++i) {
                 int uid = blocks[i]->uid;
@@ -241,10 +215,10 @@ private:
     class Node {
     public:
         Bucket* bucket;
-        bool isLeaf;
+        bool isLeaf; 
 
         Node(int index) {
-            isLeaf = checkLeaf(index);
+            isLeaf = checkLeaf(index); 
             bucket = new Bucket();
         }
 
@@ -312,13 +286,13 @@ private:
 
     class Client {
     public:
-
-
+        // pred: 0/1 选择 src 是否覆盖 dst
+        // src, dst: 连续的 size 字节缓冲区
         static inline void obl_copy_bytes(bool pred,
                                         const uint8_t *src,
                                         uint8_t       *dst,
                                         size_t         size) noexcept {
-
+            // 标准化 pred，避免乱传
             pred = pred ? 1 : 0;
 
             size_t i = 0;
@@ -327,7 +301,6 @@ private:
                     uint64_t s_word = 0, d_word = 0, out = 0;
                     std::memcpy(&s_word, src + i, 8);
                     std::memcpy(&d_word, dst + i, 8);
-
 
                     obl::OblAssign<uint64_t>(pred, s_word, d_word, &out);
 
@@ -352,79 +325,64 @@ private:
             }
         }
 
-
-
-
          static inline void obl_copy_block(bool pred,
                                   const Block *src,
                                   Block       *dst) noexcept {
             if (!src || !dst) {
-                return;
+                return;  // 或者 assert
             }
 
-
+            // 标准化 pred
             pred = pred ? 1 : 0;
 
-
+            // ---- 标量成员 ----
             dst->uid        = obl::OblChoose<int>(pred, src->uid,        dst->uid);
             dst->leaf       = obl::OblChoose<int>(pred, src->leaf,       dst->leaf);
             dst->encrypted  = obl::OblChoose<bool>(pred, src->encrypted, dst->encrypted);
             dst->cipher_len = obl::OblChoose<int>(pred, src->cipher_len, dst->cipher_len);
 
-
+            // ---- iv 数组 ----
             const size_t IV_BYTES = IV_SIZE / BYTE_SIZE;
             obl_copy_bytes(pred,
                         reinterpret_cast<const uint8_t *>(src->iv),
                         reinterpret_cast<uint8_t *>(dst->iv),
                         IV_BYTES);
 
-
+            // ---- ciphertext 数组 ----
             obl_copy_bytes(pred,
                         reinterpret_cast<const uint8_t *>(src->ciphertext),
                         reinterpret_cast<uint8_t *>(dst->ciphertext),
                         BUFFER_SIZE);
 
-
+            // ---- data: std::string，当成固定长度字节数组处理 ----
             const std::string &s_data = src->data;
             std::string       &d_data = dst->data;
 
         #ifdef DEBUG
-
+            // double-oblivious 假设：所有 Block 的 data 长度一致
             assert(s_data.size() == d_data.size());
         #endif
 
             const size_t DATA_BYTES = d_data.size();
 
-
+            // 注意：这里假设所有 Block 的 data 已经在构造时被 resize 成固定长度
             const uint8_t *s_ptr = reinterpret_cast<const uint8_t *>(s_data.data());
             uint8_t       *d_ptr = reinterpret_cast<uint8_t *>(&d_data[0]);
 
             obl_copy_bytes(pred, s_ptr, d_ptr, DATA_BYTES);
         }
 
-
-
-
-
-
-
-
-
-
-        std::map<int, int> position_map;
+        std::map<int, int> position_map; // client will store position map
         std::vector<Block*> stash;
 
         unsigned char key[KEY_SIZE / BYTE_SIZE];
 
-
     	long long evictionTime;
-
 
     	Client() : evictionTime(0) {
 	    position_map.clear();
 
     	}
-
 
         ~Client() {
             position_map.clear();
@@ -519,42 +477,25 @@ private:
             stash.insert(stash.begin(), newFront);
         }
 
-
-
-
+//        make the read and write oblivious
 
         int getLeafOblivious(int uid) {
             int foundLeaf = -1;
-
-
-
-
-
-
-
-
+            // Scan every entry in the map
 
             for (auto &it : position_map) {
                 bool is_match = obl::OblEq(it.first, uid);
 
                 foundLeaf = obl::OblChoose(is_match, it.second, foundLeaf);
 
-
+                // 保留 dummy read（可选）
                 (void)it.second;
             }
             return foundLeaf;
         }
 
         void setLeafOblivious(int uid, int newLeaf) {
-
-
-
-
-
-
-
-
-
+            // Scan every entry in the map
 
             for (auto it = position_map.begin(); it != position_map.end(); ++it) {
                 bool is_match = obl::OblEq(it->first, uid);
@@ -564,10 +505,7 @@ private:
             }
         }
 
-
-
         std::string read(Server* s, int uid) {
-
 
             int oldLeaf = getLeafOblivious(uid);
             if (oldLeaf == -1) {
@@ -575,38 +513,21 @@ private:
                 return "";
             }
 
-
             fillStash(s, oldLeaf);
             Block* found = nullptr;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+            // scratch 初始化成 stash[0] 或者一个 dummy Block 都可以
             Block scratch = *stash[0];
 
             for (Block *blk : stash) {
                 bool is_match = obl::OblEq<int>(blk->uid, uid);
-
+                // 如果是目标块，则 scratch := blk；否则 scratch 保持原值
                 obl_copy_block(is_match, blk, &scratch);
             }
-
-
-
 
             int newLeaf = randomLeaf();
 
             setLeafOblivious(uid, newLeaf);
-
 
             found->leaf = newLeaf;
 
@@ -615,103 +536,35 @@ private:
             return store;
         }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                // 在线阶段的 write：假设 uid 已经在 position_map 里
         void write(Server* s, int uid, const std::string& data) {
-
+            // 1) 用 oblivious 方式在 position_map 里拿旧 leaf
             int oldLeaf = getLeafOblivious(uid);
 
+            // 约定：如果没找到 oldLeaf == -1 属于逻辑错误（初始化阶段就应该填好）
+            // 为了保持完全 oblivious，这里不要做 data-dependent 的 if 检查，
+            // 可以在 debug 里加 assert，但 release 就相信 caller。
 
-
-
-
-
+            // 2) 随机选新 leaf，obliviously 更新 position_map
             int newLeaf = randomLeaf();
             setLeafOblivious(uid, newLeaf);
 
-
+            // 3) 把旧路径整条读进 stash
             fillStash(s, oldLeaf);
 
-
+            // 4) 在 stash 里用固定长度扫描 + obl_copy_bytes 来更新 payload
             for (Block* blk : stash) {
-                bool is_match = obl::OblEq(blk->uid, uid);
+                bool is_match = obl::OblEq(blk->uid, uid);  // 0/1，由 OblEq 保证无分支
 
-
+                // 更新 leaf 字段
                 blk->leaf = obl::OblChoose(is_match, newLeaf, blk->leaf);
 
-
+                // 更新 data （注意：每个 block 都调用同样的拷贝逻辑）
                 size_t dst_len = blk->data.size();
                 size_t src_len = data.size();
                 size_t len = (dst_len < src_len) ? dst_len : src_len;
-
-
+                // 假设 data 的长度和 blk->data 一致（都是 Node::serialize 的长度），
+                // 你也可以在调试阶段加 assert(src_len == dst_len);
 
                 obl_copy_bytes(is_match,
                                reinterpret_cast<const unsigned char*>(data.data()),
@@ -719,52 +572,9 @@ private:
                                len);
             }
 
-
+            // 5) 按旧路径做一次 eviction（和 read 一样，读写同一条 path）
             evict(s, oldLeaf);
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         void evict(Server* s, int leaf) {
             auto start = std::chrono::high_resolution_clock::now();
@@ -772,53 +582,53 @@ private:
             int path[PATHSIZE];
             getPath(leaf, path);
 
-
+            // stash 大小在本次 eviction 中固定下来
             const int stashSize = static_cast<int>(stash.size());
-
+            // 用一个 dummy Block，把被“搬走”的 stash 元素标记成 dummy（uid = -1）
             Block dummy;
 
-
+            // 按原代码的顺序：从叶子一路向根（PATHSIZE - 1 down to 0）
             for (int n = PATHSIZE - 1; n >= 0; --n) {
                 int nodeID = path[n];
-                Node* nodey = new Node();
+                Node* nodey = new Node();  // 新 bucket，里面初始全是 dummy Block*
 
-                int filled = 0;
+                int filled = 0; // 当前 bucket 已经放了多少真实 block
 
-
+                // 固定次数扫描 stash
                 for (int i = 0; i < stashSize; ++i) {
                     Block* curr = stash[i];
 
-
+                    // 计算这个 block 是否可以放到当前 node 的 bucket 上
                     int common = commonAncestor(curr->leaf, leaf);
 
-                    bool on_path  = obl::OblLe(nodeID, common);
-                    bool is_real  = !obl::OblEq(curr->uid, -1);
-                    bool not_full = obl::OblLt(filled, static_cast<int>(BUCKET_SIZE));
+                    bool on_path  = obl::OblLe(nodeID, common);        
+                    bool is_real  = !obl::OblEq(curr->uid, -1);        
+                    bool not_full = obl::OblLt(filled, static_cast<int>(BUCKET_SIZE));   
 
-
+                    // 这三个条件的“与”全部用位运算，避免短路分支
                     bool can_use = on_path & is_real & not_full;
 
-
+                    // 决定这个元素应该填到 bucket 的哪个 slot：slot == filled
                     for (int slot = 0; slot < BUCKET_SIZE; ++slot) {
                         bool is_target_slot = obl::OblEq(slot, filled);
                         bool place_here     = can_use & is_target_slot;
 
-
-
+                        // 如果 place_here == 1，则把 curr 深拷贝到该 slot；
+                        // place_here == 0 时等价于写回原值，slot 的内容保持不变。
                         obl_copy_block(place_here,
                                        curr,
                                        nodey->bucket->blocks[slot]);
                     }
 
-
+                    // 如果这个 curr 被使用了，就把 stash[i] 变成 dummy（仍然在同一个位置）
                     obl_copy_block(can_use, &dummy, curr);
 
-
+                    // obliviously 更新 filled = filled + can_use
                     int filled_plus_one = filled + 1;
                     filled = obl::OblChoose(can_use, filled_plus_one, filled);
                 }
 
-
+                // 把新 bucket 写回树（节点下标是 public 的）
                 delete s->tree->nodes[nodeID];
                 nodey->bucket->encryptBucket(key);
                 s->tree->nodes[nodeID] = nodey;
@@ -829,11 +639,7 @@ private:
             evictionTime += duration.count();
         }
 
-
-
-
     };
-
 
     static int smallLeaf() {
         return N - 1;
@@ -911,11 +717,9 @@ private:
         }
     }
 
-
     Server* server;
     Client* client;
 };
-
 
 template <int N_value>
 const std::string PathORAM<N_value>::DUMMY = "Dummy";
@@ -923,5 +727,4 @@ const std::string PathORAM<N_value>::DUMMY = "Dummy";
 template <int N_value>
 const int PathORAM<N_value>::PATHSIZE = (int)(std::log2(PathORAM::N) + 1);
 
-
-#endif
+#endif // PATHORAM_H

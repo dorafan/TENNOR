@@ -15,7 +15,6 @@ LSH::LSH(int K, int L, int RangePow)
 	_RangePow = RangePow;
 	_bucket = new Bucket*[L];
 
-
 	for (int i = 0; i < L; i++)
 	{
 		_bucket[i] = new Bucket[1 << _RangePow];
@@ -30,7 +29,6 @@ LSH::LSH(int K, int L, int RangePow)
 	 std::mt19937 gen(rd());
 	std::uniform_int_distribution<> dis(1, INT_MAX);
 
-
 	for (int i = 0; i < _K*_L; i++)
 	{
 		rand1[i] = dis(gen);
@@ -38,23 +36,17 @@ LSH::LSH(int K, int L, int RangePow)
 			rand1[i]++;
 	}
 
-
 }
-
 
 void LSH::clear()
 {
     for (int i = 0; i < _L; i++)
     {
-
-
-
     	delete[] _bucket[i];
     	_bucket[i] = new Bucket[1 << _RangePow];
 
     }
 }
-
 
 void LSH::count()
 {
@@ -70,7 +62,6 @@ void LSH::count()
 		cout <<"TABLE "<< j << "Total "<< total << endl;
 	}
 }
-
 
 int* LSH::hashesToIndex(int * hashes)
 {
@@ -107,10 +98,6 @@ int* LSH::hashesToIndex(int * hashes)
 	return indices;
 }
 
-
-
-
-
 int* LSH::add(int *indices, Node* node)
 {
     int * secondIndices = new int[_L];
@@ -118,7 +105,6 @@ int* LSH::add(int *indices, Node* node)
     {
         secondIndices[i] = _bucket[i][indices[i]].add(node);
     }
-
 
     return secondIndices;
 }
@@ -129,27 +115,21 @@ int LSH::add(int tableId, int indices, Node* node)
     return secondIndices;
 }
 
-
-
-
 int LSH::retrieve(int table, int indices, int bucket)
 {
 	return _bucket[table][indices].retrieve(bucket);
 }
 
-
-
 void LSH::getRequestIDs(int* hashes, int* hashes2, int *hashes3, int ** requestIDs, int inputID) {
-
-
-
+//    Max-2 + Max-3 +      pair-Max-2      + Pair-Max-3            +       pair-Max-2-3       + triplet-Max-2 + triplet-Max-3 + triplet-Max-2-3
+//      K   +   K   + _K * (_K - 1) / (2)  + _K * (_K - 1) / (2)   + _K * (_K - 1) / (2) * 2  +  _K * (_K - 1) * (_K - 2) / (3*2) * (2*2*2)
     int bucsNew = _K * (_K - 1) * (_K - 2) / (3*2) * (2*2*2) + _K * (_K - 1) / (2) * (2*2) + _K + _K + 1;
 
     int origin = hashesToIndex(hashes)[0];
 
     requestIDs[inputID][0] = origin;
 
-
+    // Precompute the shifts based on _K and binsize
     std::vector<int> shifts(_K);
     for (int k = 0; k < _K; ++k) {
         shifts[k] = ((_K - 1 - k) * (int) floor(log2(binsize)));
@@ -173,15 +153,6 @@ void LSH::getRequestIDs(int* hashes, int* hashes2, int *hashes3, int ** requestI
                             }
                         }
 
-
-
-
-
-
-
-
-
-
                         for (int choice = 0; choice < 8; ++choice) {
                             int mpindex = remain;
 
@@ -196,8 +167,6 @@ void LSH::getRequestIDs(int* hashes, int* hashes2, int *hashes3, int ** requestI
                             requestIDs[inputID][count] = mpindex;
                             count++;
                         }
-
-
 
                     }
                 }
@@ -216,13 +185,6 @@ void LSH::getRequestIDs(int* hashes, int* hashes2, int *hashes3, int ** requestI
                         }
                     }
 
-
-
-
-
-
-
-
                     for (int choice = 0; choice < 4; ++choice) {
                         int mpindex = remain;
 
@@ -232,11 +194,9 @@ void LSH::getRequestIDs(int* hashes, int* hashes2, int *hashes3, int ** requestI
                         mpindex += source_j << shifts[j];
                         mpindex += source_l << shifts[l];
 
-
                         requestIDs[inputID][count] = mpindex;
                         count++;
                     }
-
 
                 }
 
@@ -254,12 +214,6 @@ void LSH::getRequestIDs(int* hashes, int* hashes2, int *hashes3, int ** requestI
                     }
                 }
 
-
-
-
-
-
-
                 for (unsigned int choice = 0; choice < 2; ++choice) {
                     int mpindex = remain;
 
@@ -270,7 +224,6 @@ void LSH::getRequestIDs(int* hashes, int* hashes2, int *hashes3, int ** requestI
                     requestIDs[inputID][count] = mpindex;
                     count++;
                 }
-
 
             }else {
                 unsigned int h = rand1[_K*i + j];
@@ -287,8 +240,6 @@ void LSH::getRequestIDs(int* hashes, int* hashes2, int *hashes3, int ** requestI
     shifts.clear();
 
 }
-
-
 
 LSH::~LSH()
 {

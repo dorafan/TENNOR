@@ -17,6 +17,7 @@
 #include<map>
 #include<string>
 #include "Config.h"
+#include "BuildInfo.h"
 
 #include <ctime>
 
@@ -24,7 +25,6 @@ int *RangePow;
 int *K;
 int *L;
 float *Sparsity;
-
 
 int Batchsize = 1000;
 int Rehash = 1000;
@@ -47,20 +47,14 @@ int globalTime = 0;
 
 int globalTrainTime = 0;
 
-
-
 int ORAMtime = 0;
 int stashtime = 0;
 int positionmaptime = 0;
 int serializetime = 0;
 
-
-
-
 int oraminittime = 0;
 
 int oramfirstwritetime = 0;
-
 
 int updatetime = 0;
 int rehashtime = 0;
@@ -69,7 +63,6 @@ int updatenodetime = 0;
 int updateNodeOramTime = 0;
 
 int rehashLshOramTime = 0;
-
 
 int feedforwardtime = 0;
 int backpropagationtime = 0;
@@ -85,12 +78,10 @@ int oramlshtime = 0;
 #define fst first
 #define snd second
 
-
 void endianSwap(unsigned int &x) {
     x = (x>>24)|((x<<8)&0x00FF0000)|((x>>8)&0x0000FF00)|(x<<24);
 }
 typedef vector<unsigned int> Image;
-
 
 string trim(string& str)
 {
@@ -98,7 +89,6 @@ string trim(string& str)
     size_t last = str.find_last_not_of(' ');
     return str.substr(first, (last - first + 1));
 }
-
 
 void parseconfig(string filename)
 {
@@ -367,12 +357,10 @@ void ReadDataSVM(int numBatches,  Network* _mynet, int epoch){
     for (size_t i = 0; i < numBatches; i++) {
         std::time_t now = std::time(nullptr);
         char buffer[100];
-
+        // Format: [YYYY-MM-DD HH:MM:SS]
         std::strftime(buffer, sizeof(buffer), "[%Y-%m-%d %H:%M:%S] ", std::localtime(&now));
         std::cout << buffer << std::endl;
         std::cout << "START TRAINING Batch " << i << std::endl;
-
-
 
         int **records = new int *[Batchsize];
         float **values = new float *[Batchsize];
@@ -446,7 +434,6 @@ void ReadDataSVM(int numBatches,  Network* _mynet, int epoch){
             }
         }
 
-
         if ((epoch*numBatches+i)%(Rebuild/Batchsize) == 1){
             if(Mode==1 || Mode==4) {
                 rebuild = true;
@@ -454,7 +441,6 @@ void ReadDataSVM(int numBatches,  Network* _mynet, int epoch){
         }
 
         auto t1 = std::chrono::high_resolution_clock::now();
-
 
         auto logloss = _mynet->ProcessInput(records, values, sizes, labels, labelsize, epoch * numBatches + i,
                                             rehash, rebuild);
@@ -482,23 +468,19 @@ void ReadDataSVM(int numBatches,  Network* _mynet, int epoch){
 
 }
 
-
 int main(int argc, char* argv[])
 {
-
-
+    const int option_result = slide_oram::handle_build_info_option(argc, argv);
+    if (option_result >= 0) {
+        return option_result;
+    }
 
     std::cout << "Starrt processing Config file" << endl;
     parseconfig(argv[1]);
 
-
-
-
-
     int numBatches = totRecords/Batchsize;
     int numBatchesTest = totRecordsTest/Batchsize;
     NodeType* layersTypes = new NodeType[numLayer];
-
 
     for (int i=0; i<numLayer-1; i++){
         layersTypes[i] = NodeType::ReLU;
@@ -517,19 +499,10 @@ int main(int argc, char* argv[])
     int timeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
     std::cout << "Network Initialization takes " << 1.0 * timeDiffInMiliseconds << std::endl;
 
-
-
-
-
     for (int e=0; e< Epoch; e++) {
         ofstream outputFile(logFile,  std::ios_base::app);
         outputFile<<"Epoch "<<e<<endl;
         ReadDataSVM(numBatches, _mynet, e);
-
-
-
-
-
 
         _mynet->saveWeights(savedWeights);
 
@@ -549,10 +522,7 @@ int main(int argc, char* argv[])
 
         outputFile << endl << endl << endl;
 
-
     }
-
-
 
     delete [] RangePow;
     delete [] K;

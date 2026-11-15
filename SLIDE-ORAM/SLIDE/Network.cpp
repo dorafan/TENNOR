@@ -5,14 +5,11 @@
 #include "Config.h"
 #include <omp.h>
 
-
-
 #include <random>
-#include <chrono>
+#include <chrono> 
 
 #define DEBUG 1
 using namespace std;
-
 
 Network::Network(int *sizesOfLayers, NodeType *layersTypes, int noOfLayers, int batchSize, float lr, int inputdim,  int* K, int* L, int* RangePow, float* Sparsity, cnpy::npz_t arr) {
 
@@ -23,7 +20,6 @@ Network::Network(int *sizesOfLayers, NodeType *layersTypes, int noOfLayers, int 
     _learningRate = lr;
     _currentBatchSize = batchSize;
     _Sparsity = Sparsity;
-
 
     for (int i = 0; i < noOfLayers; i++) {
         if (i != 0) {
@@ -62,7 +58,6 @@ Network::Network(int *sizesOfLayers, NodeType *layersTypes, int noOfLayers, int 
     cout << "after layer" << endl;
     _inputIDs = new int[_currentBatchSize]();
 
-
     cout << "Serialize Nodes and LSH buckets And write into ORAM" <<endl;
     for (int i = 0; i < _numberOfLayers; i ++) {
         if (Sparsity[i] != 1) {
@@ -72,9 +67,6 @@ Network::Network(int *sizesOfLayers, NodeType *layersTypes, int noOfLayers, int 
 
             for (int o = 0; o < _hiddenlayers[i]->_noOfNodes; o++){
                 pathORAM.write(_hiddenlayers[i]->getNodebyID(o)->oram_ID, _hiddenlayers[i]->getNodebyID(o)->serialize());
-                if (o % 10000 == 0){
-                    std::cout << "complete node: " << o << std::endl;
-                }
             }
 
             if (TEST){
@@ -84,13 +76,11 @@ Network::Network(int *sizesOfLayers, NodeType *layersTypes, int noOfLayers, int 
                 for (int p = 0; p < (1 << _hiddenlayers[i]->_RangeRow); p++) {
                     pathORAM.write(_hiddenlayers[i]->_hashTables->_bucket[o][p].oram_ID, _hiddenlayers[i]->_hashTables->_bucket[o][p].serialize());
                 }
-                std::cout << "complete LSH table: " << o << std::endl;
             }
         }
     }
     cout << "End Serialize and initial ORAM write" << endl;
 }
-
 
 Layer *Network::getLayer(int LayerID) {
     if (LayerID < _numberOfLayers)
@@ -100,7 +90,6 @@ Layer *Network::getLayer(int LayerID) {
 
     }
 }
-
 
 int Network::predictClass(int **inputIndices, float **inputValues, int *length, int **labels, int *labelsize) {
     int correctPred = 0;
@@ -117,13 +106,12 @@ int Network::predictClass(int **inputIndices, float **inputValues, int *length, 
         activeValuesperlayer[0] = inputValues[i];
         sizes[0] = length[i];
 
-
         for (int j = 0; j < _numberOfLayers; j++) {
             int tmp = _hiddenlayers[j]->queryActiveNodeandComputeActivations(activenodesperlayer, activeValuesperlayer, sizes, j, i, labels[i], 0, _Sparsity[_numberOfLayers+j], -1);
             inhashtable+=tmp;
         }
 
-
+        //compute softmax
         int noOfClasses = sizes[_numberOfLayers];
         float max_act = -222222222;
         int predict_class = -1;
@@ -138,7 +126,6 @@ int Network::predictClass(int **inputIndices, float **inputValues, int *length, 
         if (std::find (labels[i], labels[i]+labelsize[i], predict_class)!= labels[i]+labelsize[i]) {
             correctPred++;
         }
-
 
         delete[] sizes;
         for (int j = 1; j < _numberOfLayers + 1; j++) {
@@ -155,9 +142,7 @@ int Network::predictClass(int **inputIndices, float **inputValues, int *length, 
     return correctPred;
 }
 
-
 int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths, int **labels, int *labelsize, int iter, bool rehash, bool rebuild) {
-
 
     float logloss = 0.0;
     int lowconf = 0;
@@ -177,14 +162,9 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
     }
 
-
     if (TEST) {
         std::cout << "START Batch Training, ITER: " << iter << endl;
     }
-
-
-
-
 
     if (TEST) {
         std::cout << "Update Start" << endl;
@@ -194,7 +174,6 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         auto t1 = std::chrono::high_resolution_clock::now();
     bool tmpRehash;
     bool tmpRebuild;
-
 
     for (int l=0; l<1 ;l++) {
         if(rehash & _Sparsity[l]<1){
@@ -218,30 +197,17 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         }
         int ratio = 1;
 
-
         if (TEST) {
             std::cout << "Update Node Start, layer :" << l << endl;
         }
         for (int m=0; m< _hiddenlayers[l]->_noOfNodes; m++) {
-            if(m%10000==0){
-                std::cout <<"finish node: "<<m <<std::endl;
-            }
             auto tup1 = std::chrono::high_resolution_clock::now();
-
-
-
 
             auto tup2 = std::chrono::high_resolution_clock::now();
 
             Node *tmp = _hiddenlayers[l]->getNodebyID(m);
 
             auto tup3 = std::chrono::high_resolution_clock::now();
-
-
-
-
-
-
 
             if(ADAM){
 
@@ -252,12 +218,10 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                     tmp->_t[d] = 0;
                 }
 
-
                 tmp->_adamAvgMombias = BETA1 * tmp->_adamAvgMombias + (1 - BETA1) * tmp->_tbias;
                 tmp->_adamAvgVelbias = BETA2 * tmp->_adamAvgVelbias + (1 - BETA2) * tmp->_tbias * tmp->_tbias;
                 tmp->_bias += ratio*tmplr * tmp->_adamAvgMombias / (sqrt(tmp->_adamAvgVelbias) + EPS);
                 tmp->_tbias = 0;
-
 
             }
             else{
@@ -267,68 +231,13 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
             auto tup4 = std::chrono::high_resolution_clock::now();
 
-
-
-
             auto tup5 = std::chrono::high_resolution_clock::now();
-
 
             auto tupntimeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(tup5 - tup1).count();
             updatenodetime += tupntimeDiffInMiliseconds;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         }
     }
-
 
     for (int l=1; l<_numberOfLayers ;l++) {
         if(rehash & _Sparsity[l]<1){
@@ -352,7 +261,6 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         }
         int ratio = 1;
 
-
         if (TEST) {
             std::cout << "Update Node Start, layer : " << l << endl;
         }
@@ -368,12 +276,6 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
             auto tup3 = std::chrono::high_resolution_clock::now();
 
-
-
-
-
-
-
             if(ADAM){
 
                 for (int d=0; d< tmp->_dim;d++){
@@ -383,12 +285,10 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                     tmp->_t[d] = 0;
                 }
 
-
                 tmp->_adamAvgMombias = BETA1 * tmp->_adamAvgMombias + (1 - BETA1) * tmp->_tbias;
                 tmp->_adamAvgVelbias = BETA2 * tmp->_adamAvgVelbias + (1 - BETA2) * tmp->_tbias * tmp->_tbias;
                 tmp->_bias += ratio*tmplr * tmp->_adamAvgMombias / (sqrt(tmp->_adamAvgVelbias) + EPS);
                 tmp->_tbias = 0;
-
 
             }
             else{
@@ -398,18 +298,14 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
             auto tup4 = std::chrono::high_resolution_clock::now();
 
-
             pathORAM.write(read_id, tmp->serialize());
 
             auto tup5 = std::chrono::high_resolution_clock::now();
-
 
             auto tupntimeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(tup5 - tup1).count();
             updatenodetime += tupntimeDiffInMiliseconds;
             auto tupnoramtimeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(tup5 - tup4 + tup2 - tup1).count();
             updateNodeOramTime += tupnoramtimeDiffInMiliseconds;
-
-
 
             if (tmpRehash) {
 
@@ -433,8 +329,6 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                     hashes = _hiddenlayers[l]->_srp->getHash(tmp->_weights, tmp->_dim);
                 }
 
-
-
                 int *hashIndices = _hiddenlayers[l]->_hashTables->hashesToIndex(hashes);
                 int * bucketIndices = _hiddenlayers[l]->_hashTables->add(hashIndices, m+1);
 
@@ -455,7 +349,6 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                 auto tuploramtimeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(tup8 - tup7).count();
                 rehashLshOramTime += tuploramtimeDiffInMiliseconds;
 
-
                 delete[] hashes;
                 delete[] hashIndices;
                 delete[] bucketIndices;
@@ -466,17 +359,6 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
     auto tupe = std::chrono::high_resolution_clock::now();
     int tuptimeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(tupe - tups).count();
     updatetime += tuptimeDiffInMiliseconds;
-
-
-
-
-
-
-
-
-
-
-
 
     for (int i = 0; i < _currentBatchSize; i++) {
         int **activenodesperlayer = new int *[_numberOfLayers + 1]();
@@ -489,7 +371,6 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
         int in;
 
-
         if (TEST) {
             std::cout << "FeedForward Start" << endl;
         }
@@ -501,27 +382,19 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
             in = _hiddenlayers[j]->queryActiveNodeandComputeActivations(activenodesperlayer, activeValuesperlayer, sizes, j, i, labels[i], labelsize[i], _Sparsity[j], iter*_currentBatchSize+i);
             avg_retrieval[j]+=in;
 
-
-
-
-
+//            simulate the oram
             if (j != 0) {
-
-
-
 
                 auto tons = std::chrono::high_resolution_clock::now();
 
-
+                // Pad node accesses to BUCKETSIZE * L with dummy accesses.
 
                 for (int sims = 0; sims < (BUCKETSIZE*_hiddenlayers[j]->_L) ; sims ++) {
 
                     if (sims < sizes[j+1]){
                          int id_read = _hiddenlayers[j]->getNodebyID(activenodesperlayer[j + 1][sims])->oram_ID;
 
-
                         std::string data = pathORAM.read(id_read);
-
 
                         pathORAM.write(id_read, _hiddenlayers[j]->getNodebyID(activenodesperlayer[j + 1][sims])->serialize());
 
@@ -534,17 +407,11 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                         pathORAM.write(id_read, _hiddenlayers[j]->getNodebyID(randnum)->serialize());
                     }
 
-
                 }
 
                 auto tone = std::chrono::high_resolution_clock::now();
                 auto tontimeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(tone - tons).count();
                 oramnodetime += tontimeDiffInMiliseconds;
-
-
-
-
-
 
                 auto tols = std::chrono::high_resolution_clock::now();
 
@@ -566,21 +433,15 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         auto t2 = std::chrono::high_resolution_clock::now();
         auto timeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
 
-
         auto tffe = std::chrono::high_resolution_clock::now();
         auto tfftimeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(tffe - tffs).count();
         feedforwardtime += tfftimeDiffInMiliseconds;
-
-
-
 
         if (TEST) {
             std::cout << "BackPropagation Start" << endl;
         }
 
         auto tbps = std::chrono::high_resolution_clock::now();
-
-
 
         for (int j = _numberOfLayers - 1; j >= 0; j--) {
             if (j == _numberOfLayers - 1){
@@ -608,10 +469,8 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
                     auto tbp1 = std::chrono::high_resolution_clock::now();
 
-
                     int id_read =  _hiddenlayers[j]->getNodebyID(activenodesperlayer[j + 1][k])->oram_ID;
                     std::string data = pathORAM.read(id_read);
-
 
                     auto tbp2 = std::chrono::high_resolution_clock::now();
 
@@ -658,11 +517,9 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         auto tbptimeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(tbpe - tbps).count();
         backpropagationtime += tbptimeDiffInMiliseconds;
 
-
         if (TEST) {
             std::cout << "Free Memory " << endl;
         }
-
 
         delete[] sizes;
         for (int j = 1; j < _numberOfLayers + 1; j++) {
@@ -673,15 +530,9 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         delete[] activeValuesperlayer;
     }
 
-
-
-
     auto t2 = std::chrono::high_resolution_clock::now();
     int timeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
     std::cout << "Layer " <<" takes" << 1.0 * timeDiffInMiliseconds << std::endl;
-
-
-
 
     if (DEBUG&rehash) {
 
@@ -691,14 +542,12 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
     return logloss;
 }
 
-
 void Network::saveWeights(string file)
 {
     for (int i=0; i< _numberOfLayers; i++){
         _hiddenlayers[i]->saveWeights(file);
     }
 }
-
 
 Network::~Network() {
 

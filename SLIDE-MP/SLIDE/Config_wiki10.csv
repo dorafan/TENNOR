@@ -1,6 +1,6 @@
 RangePow = 6,9
 K = 2,3
-L = 20,1
+L = 1,1
 Sparsity = 1,0.005,1,1
 
 Batchsize = 32
@@ -12,7 +12,7 @@ totRecordsTest = 6616
 
 BUCKETSIZE = 512
 binsize = 8
-isBruteForce = 1
+isBruteForce = 0
 NNSorMPS = 0
 BFnumber = 0
 
@@ -20,7 +20,7 @@ isMPWTA = 1
 
 isRandom = 0
 
-isExtLog = 0
+isHopper = 0
 
 isLog = 1
 
@@ -41,5 +41,4 @@ testData=../dataset/Wiki10/test.txt
 weight=../dataset/savedWeights.npz
 savedweight=../dataset/savedWeights.npz
 
-logFile=../dataset/log.txt
-logFile=../dataset/log.txt
+logFile=../dataset/training.log

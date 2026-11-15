@@ -2,7 +2,7 @@
 #pragma once
 using namespace std;
 
-class SparseRandomProjection
+class SparseRandomProjection 
 {
 private:
 	int _dim;

@@ -60,9 +60,8 @@ float Node::getActivation(int* indices, float* values, int length, int inputID)
 
     }
 	assert(("Input ID more than Batch Size", inputID <= _currentBatchsize));
-
-
-	_ActiveinputIds[inputID] = 1;
+	
+	_ActiveinputIds[inputID] = 1; 
 
 	_lastActivations[inputID] = 0;
 	for (int i = 0; i < length; i++)
@@ -106,7 +105,6 @@ void Node::ComputeExtaStatsForSoftMax(float normalizationConstant, int inputID, 
 
 	_lastActivations[inputID] /= normalizationConstant + 0.0000001;
 
-
 	_lastGradients[inputID] = 1;
 	if (find (label, label+labelsize, _IDinLayer)!= label+labelsize) {
 		_lastDeltaforBPs[inputID] = (1.0/labelsize - _lastActivations[inputID]) / _currentBatchsize;
@@ -120,10 +118,9 @@ void Node::ComputeExtaStatsForSoftMax(float normalizationConstant, int inputID, 
 void Node::backPropagate(Node** previousNodes, int* previousLayerActiveNodeIds, int previousLayerActiveNodeSize, float learningRate, int inputID)
 {
 	assert(("Input Not Active but still called !! BUG", _ActiveinputIds[inputID] == 1));
-
 	for (int i = 0; i < previousLayerActiveNodeSize; i++)
 	{
-
+		//UpdateDelta before updating weights
 		previousNodes[previousLayerActiveNodeIds[i]]->incrementDelta(inputID, _lastDeltaforBPs[inputID] * _weights[previousLayerActiveNodeIds[i]]);
 		float grad_t = _lastDeltaforBPs[inputID] * previousNodes[previousLayerActiveNodeIds[i]]->getLastActivation(inputID);
 		float grad_tsq = grad_t * grad_t;
@@ -159,7 +156,6 @@ void Node::backPropagate(Node** previousNodes, int* previousLayerActiveNodeIds, 
 void Node::backPropagateFirstLayer(int* nnzindices, float* nnzvalues, int nnzSize, float learningRate, int inputID)
 {
 	assert(("Input Not Active but still called !! BUG", _ActiveinputIds[inputID] == 1));
-
 	for (int i = 0; i < nnzSize; i++)
 	{
 		float grad_t = _lastDeltaforBPs[inputID] * nnzvalues[i];
@@ -194,7 +190,7 @@ void Node::backPropagateFirstLayer(int* nnzindices, float* nnzvalues, int nnzSiz
 
 Node::~Node()
 {
-
+	
 	delete[] _indicesInTables;
 	delete[] _indicesInBuckets;
 	delete[] _lastActivations;
@@ -211,7 +207,7 @@ Node::~Node()
 }
 
 
-
+// for debugging gradients.
 float Node::purturbWeight(int weightid, float delta)
 {
 	_weights[weightid] += delta;

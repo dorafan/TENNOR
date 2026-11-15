@@ -4,9 +4,23 @@ PROJECT( HashDeepLearning )
 
 SET( CMAKE_CXX_STANDARD 11 )
 
+# Empty preserves the source default, including manual edits to Config.h.
+SET(SLIDE_ORAM_N "" CACHE STRING "Optional compile-time ORAM_N override")
+IF(NOT "${SLIDE_ORAM_N}" STREQUAL "")
+  IF(NOT "${SLIDE_ORAM_N}" MATCHES "^[1-9][0-9]*$")
+    MESSAGE(FATAL_ERROR "SLIDE_ORAM_N must be a positive power-of-two integer.")
+  ENDIF()
+  MATH(EXPR ORAM_N_REMAINDER "${SLIDE_ORAM_N} & (${SLIDE_ORAM_N} - 1)")
+  IF(NOT ORAM_N_REMAINDER EQUAL 0)
+    MESSAGE(FATAL_ERROR "SLIDE_ORAM_N must be a power of two.")
+  ENDIF()
+  MESSAGE(STATUS "SLIDE-ORAM compile-time ORAM_N: ${SLIDE_ORAM_N}")
+ELSE()
+  MESSAGE(STATUS "SLIDE-ORAM compile-time ORAM_N: use SLIDE/Config.h")
+ENDIF()
+
 # cross-platform OpenMP find
 IF(APPLE)
-  # MESSAGE (STATUS "${OpenMP_LIBRARIES}")
   IF ("${OpenMP_LIBRARIES}" STREQUAL "")
     FIND_LIBRARY(OpenMP_LIBRARY
         NAMES omp
@@ -19,7 +33,6 @@ IF(APPLE)
     FIND_PACKAGE_HANDLE_STANDARD_ARGS(OpenMP DEFAULT_MSG 
         OpenMP_LIBRARY OpenMP_INCLUDE_DIR)
     IF (OpenMP_FOUND)
-        # MESSAGE (STATUS "OpenMP FOUND")
         SET(OpenMP_LIBRARIES ${OpenMP_LIBRARY} CACHE STRING "Cache OpenMP Lib" FORCE)
         SET(OpenMP_INCLUDE_DIRS ${OpenMP_INCLUDE_DIR} CACHE STRING "Cache OpenMP Include" FORCE)
         SET(OpenMP_COMPILE_OPTIONS -XPREPROCESSOR -FOpenMP -LOMP)
@@ -40,7 +53,6 @@ ELSE()
   SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}" )
 ENDIF()
 
-# build dependencies
 INCLUDE( ExternalProject )
 
 FIND_PACKAGE( Git REQUIRED )
@@ -61,7 +73,6 @@ ExternalProject_Add(
   BINARY_DIR ZLIB-build
   UPDATE_COMMAND ""
   PATCH_COMMAND ""
-  # INSTALL_COMMAND ""
   CMAKE_GENERATOR ${gen}
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX:STRING=${PROJECT_BINARY_DIR}/ep
@@ -74,7 +85,6 @@ ExternalProject_Add(
 )
 functionInstallExternalCMakeProject(ZLIB)
 
-# set the expected zlib libraries
 IF( WIN32 )
   SET( ZLIB_LIB_DEBUG ${PROJECT_BINARY_DIR}/ep/lib/zlibstaticd.lib )
   SET( ZLIB_LIB_RELEASE ${PROJECT_BINARY_DIR}/ep/lib/zlibstatic.lib )
@@ -87,12 +97,10 @@ ExternalProject_Add(
   CNPY
   DEPENDS ZLIB
   GIT_REPOSITORY https://github.com/sarthakpati/cnpy.git
-  # GIT_TAG v1.2.11
   SOURCE_DIR CNPY-source
   BINARY_DIR CNPY-build
   UPDATE_COMMAND ""
   PATCH_COMMAND ""
-  # INSTALL_COMMAND ""
   CMAKE_GENERATOR ${gen}
   CMAKE_ARGS
     -DZLIB_INCLUDE_DIR:STRING=${PROJECT_BINARY_DIR}/ep/include
@@ -106,24 +114,24 @@ functionInstallExternalCMakeProject(CNPY)
 
 INCLUDE_DIRECTORIES( ${PROJECT_BINARY_DIR}/ep/include )
 
-# set CNPY lib path
 IF( WIN32 )
   SET( CNPY_LIB ${PROJECT_BINARY_DIR}/ep/lib/cnpy.lib )
 ELSE()
 SET( CNPY_LIB ${PROJECT_BINARY_DIR}/ep/lib/libcnpy.a )
 ENDIF()
 
-# now build SLIDE
 FILE( GLOB_RECURSE SLIDE_SOURCES "${PROJECT_SOURCE_DIR}/SLIDE/*.cpp" )
 FILE( GLOB_RECURSE SLIDE_HEADERS "${PROJECT_SOURCE_DIR}/SLIDE/*.h" )
 
-# add library to decouple compilation
 ADD_LIBRARY( SLIDE_LIB ${SLIDE_HEADERS} ${SLIDE_SOURCES}
         )
+IF(NOT "${SLIDE_ORAM_N}" STREQUAL "")
+  # PUBLIC applies the same capacity to the library and the runme executable.
+  TARGET_COMPILE_DEFINITIONS(SLIDE_LIB PUBLIC ORAM_N=${SLIDE_ORAM_N})
+ENDIF()
 ADD_DEPENDENCIES( SLIDE_LIB CNPY )
 TARGET_LINK_LIBRARIES( SLIDE_LIB ${CNPY_LIB} )
 
-# add executable
 SET( SLIDE_EXE_NAME runme )
 ADD_EXECUTABLE( ${SLIDE_EXE_NAME} ${PROJECT_SOURCE_DIR}/SLIDE/main.cpp )
 ADD_DEPENDENCIES( ${SLIDE_EXE_NAME} SLIDE_LIB )

@@ -30,7 +30,7 @@ int Bucket::getSize()
 
 int Bucket::add(int id) {
 
-
+    //FIFO
     if (FIFO) {
         isInit += 1;
         int index = _counts & (BUCKETSIZE - 1);
@@ -38,7 +38,7 @@ int Bucket::add(int id) {
         arr[index] = id;
         return index;
     }
-
+    //Reservoir Sampling
     else {
         _counts++;
         if (index == BUCKETSIZE) {

@@ -8,10 +8,10 @@
 #include <vector>
 #include <string.h>
 #include "MurmurHash.h"
+/*
+*  Algorithm from the paper The Power of Comparative Reasoning. Jay Yagnik, Dennis Strelow, David A. Ross, Ruei-sung Lin
 
-
-
-
+*/
 using namespace std;
 class WtaHash
 {

@@ -8,7 +8,7 @@ private:
 	int isInit = -1;
 	int index = 0;
 	int _counts = 0;
-
+	
 public:
 	Bucket();
 	int add(int id);

@@ -23,7 +23,7 @@ Layer::Layer(int noOfNodes, int previousLayerNumOfNodes, int layerID, NodeType t
     _RangeRow = RangePow;
     _previousLayerNumOfNodes = previousLayerNumOfNodes;
 
-
+// create a list of random nodes just in case not enough nodes from hashtable for active nodes.
     _randNode = new int[_noOfNodes];
     for (int n = 0; n < _noOfNodes; n++) {
         _randNode[n] = n;
@@ -31,7 +31,7 @@ Layer::Layer(int noOfNodes, int previousLayerNumOfNodes, int layerID, NodeType t
 
     std::random_shuffle(_randNode, _randNode + _noOfNodes);
 
-
+//TODO: Initialize Hash Tables and add the nodes. Done by Beidi
     _hashTables = new LSH(_K, _L, RangePow);
 
     if (HashFunction == 1) {
@@ -129,7 +129,6 @@ void Layer::updateRandomNodes()
 
 void Layer::addtoHashTable(float* weights, int length, float bias, int ID)
 {
-
     int *hashes;
     if(HashFunction==1) {
         hashes = _wtaHasher->getHash(weights);
@@ -203,9 +202,9 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
     ofstream mipsFile;
     ofstream signatures;
     if(isLog == 1){
-        if(isExtLog == 1){
-            mipsFile.open("/scratch/anonymous/SLIDE-MP/dataset/mipsfile.txt",  std::ios_base::app);
-            signatures.open("/scratch/anonymous/SLIDE-MP/dataset/signatures.txt",  std::ios_base::app);
+        if(isHopper == 1){
+            mipsFile.open("/scratch/zqu4/SLIDE-MP/dataset/mipsfile.txt",  std::ios_base::app);
+            signatures.open("/scratch/zqu4/SLIDE-MP/dataset/signatures.txt",  std::ios_base::app);
         }
         else{
             mipsFile.open("../dataset/mipsfile.txt",  std::ios_base::app);
@@ -213,10 +212,7 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
         }
     }
 
-
-
-
-
+    //Beidi. Query out all the candidate nodes
     int len;
     int in =0;
     int inO = 0;
@@ -224,7 +220,7 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
     if(Sparsity==1.0){
         len = _noOfNodes;
         lengths[layerIndex + 1] = len;
-        activenodesperlayer[layerIndex + 1] = new int[len];
+        activenodesperlayer[layerIndex + 1] = new int[len]; //assuming not intitialized;
         for (int i = 0; i < len; i++)
         {
             activenodesperlayer[layerIndex + 1][i] = i;
@@ -251,12 +247,11 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
             int *hashIndices = _hashTables->hashesToIndex(hashes);
             int **actives = _hashTables->retrieveRaw(hashIndices);
 
-
             auto t00 = std::chrono::high_resolution_clock::now();
 
             auto t1 = std::chrono::high_resolution_clock::now();
             std::map<int, size_t> counts;
-
+            // Make sure that the true label node is in candidates
             if (_type == NodeType::Softmax) {
                 if (labelsize > 0) {
                     for (int i=0; i<labelsize ;i++){
@@ -282,48 +277,7 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
             }
             auto t11 = std::chrono::high_resolution_clock::now();
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            //thresholding
             auto t3 = std::chrono::high_resolution_clock::now();
             vector<int> vect;
             for (auto &&x : counts){
@@ -388,7 +342,6 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
             }
 
             int *hashIndices = _hashTables->hashesToIndex(hashes);
-
             int ***actives = _hashTables->retrieveRawMP(hashes, hashes2);
             int ** activesO = _hashTables->retrieveRaw(hashIndices);
             int bucs = _K * (_K - 1) * (_K - 2) / (3*2) + _K * (_K - 1) / (2) + _K;
@@ -396,14 +349,8 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
             int ***activesNew = _hashTables->retrieveRawMPNew(hashes, hashes2, hashes3);
             int bucsNew = _K * (_K - 1) * (_K - 2) / (3*2) * (2*2*2) + _K * (_K - 1) / (2) * (2*2) + _K + _K;
 
-
-
-
-
-
-
             std::map<int, size_t> countsNew;
-
+            // Make sure that the true label node is in candidates
             if (_type == NodeType::Softmax) {
                 if (labelsize > 0) {
                     for (int i=0; i<labelsize ;i++){
@@ -451,11 +398,8 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
 
             inNew = countsNew.size();
 
-
-
-
             std::map<int, size_t> counts;
-
+            // Make sure that the true label node is in candidates
             if (_type == NodeType::Softmax) {
                 if (labelsize > 0) {
                     for (int i=0; i<labelsize ;i++){
@@ -503,14 +447,8 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
 
             in = counts.size();
 
-
-
-
-
-
-
             std::map<int, size_t> countsO;
-
+            // Make sure that the true label node is in candidates
             if (_type == NodeType::Softmax) {
                 if (labelsize > 0) {
                     for (int i=0; i<labelsize ;i++){
@@ -562,9 +500,6 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
                 }
 
             }
-
-
-
 
             if (isBruteForce == 1 && isRandom == 0){
                 std::map<int, size_t> countsBF;
@@ -672,30 +607,6 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
                     }
                 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
                 srand(unsigned (time(NULL)));
                 while (countsRand.size() < inNew){
 
@@ -726,33 +637,10 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
 
             }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
             delete[] hashes;
             delete[] hashes2;
             delete[] hashIndices;
             delete[] hashes3;
-
-
-
-
-
-
             delete[] actives;
 
             delete[] activesO;
@@ -802,7 +690,6 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
             auto t2 = std::chrono::high_resolution_clock::now();
             auto timeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
 
-
         }
 
         else if (Mode==3 & _type== NodeType::Softmax){
@@ -837,11 +724,7 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
         }
     }
 
-
-
-
-
-    activeValuesperlayer[layerIndex + 1] = new float[len];
+    activeValuesperlayer[layerIndex + 1] = new float[len]; //assuming its not initialized else memory leak;
     float maxValue = 0;
     if (_type == NodeType::Softmax)
         _normalizationConstants[inputID] = 0;

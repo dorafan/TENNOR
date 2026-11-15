@@ -15,7 +15,6 @@ LSH::LSH(int K, int L, int RangePow)
     _RangePow = RangePow;
     _bucket = new Bucket*[L];
 
-
     for (int i = 0; i < L; i++)
     {
         _bucket[i] = new Bucket[1 << _RangePow];
@@ -26,7 +25,6 @@ LSH::LSH(int K, int L, int RangePow)
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(1, INT_MAX);
-
 
     for (int i = 0; i < _K*_L; i++)
     {
@@ -120,7 +118,9 @@ int LSH::add(int tableId, int indices, int id)
 }
 
 
-
+/*
+* Returns all the buckets
+*/
 int** LSH::retrieveRaw(int *indices)
 {
     int ** rawResults = new int*[_L];
@@ -134,7 +134,9 @@ int** LSH::retrieveRaw(int *indices)
 }
 
 
-
+/*
+ * Returns all the bucekts with their 1-step neighbors
+ */
 
 int *** LSH::retrieveRawMP(int *hashes, int *hashes2) {
     int *** rawResults = new int**[_L];
@@ -142,15 +144,6 @@ int *** LSH::retrieveRawMP(int *hashes, int *hashes2) {
     for (int i = 0; i < _L; i++){
         rawResults[i] = new int* [bucs];
     }
-
-
-
-
-
-
-
-
-
 
     for (int i = 0; i < _L; i++)
     {
@@ -278,7 +271,4 @@ LSH::~LSH()
     }
     delete[] _bucket;
 }
-
-
-
 

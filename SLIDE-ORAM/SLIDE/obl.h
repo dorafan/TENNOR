@@ -1,12 +1,8 @@
-
-
-
+// Created by Zifan.
 
 #pragma once
 
 #include "obl_primitives.h"
-
-
 
 namespace obl {
 
@@ -44,7 +40,6 @@ namespace obl {
     inline T OblChoose(bool pred, const T &t_val, const T &f_val) {
         return snoopy::ObliviousChoose(pred, t_val, f_val);
     }
-
 
     template <typename Iter>
     inline void OblMerge(Iter begin, Iter end) {
@@ -94,13 +89,12 @@ namespace obl {
         return snoopy::ObliviousArrayAssignBytes(arr, src, size, i, arr_len);
     }
 
-
     static bool OblEqArr(const uint8_t *a, const uint8_t *b, size_t size) {
         size_t i = 0;
         bool res = true;
         while (i < size) {
             if (i + 8 <= size) {
-
+                // These array accesses are oblivious because the indices are deterministic.
 
                 res &=
                         snoopy::ObliviousEqual(*reinterpret_cast<const uint64_t *>(a + i), *reinterpret_cast<const uint64_t *>(b + i));
@@ -117,5 +111,4 @@ namespace obl {
         return res;
     }
 
-}
-
+}  // namespace obl

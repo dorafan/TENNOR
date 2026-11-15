@@ -20,7 +20,7 @@ isMPWTA = 1
 
 isRandom = 0
 
-isExtLog = 1
+isHopper = 0
 
 isLog = 1
 
@@ -42,7 +42,6 @@ testData=../dataset/Wiki325/test.txt
 weight=../dataset/savedWeights.npz
 savedweight=../dataset/savedWeights.npz
 
-logFile=../dataset/w325_log.txt
-logFile=../dataset/w325_log.txt
+logFile=../dataset/training.log
 
-retrivalfile=../dataset/w325_retrival.txt
+retrivalfile=../dataset/retrival.txt

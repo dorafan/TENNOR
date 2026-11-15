@@ -1,0 +1,30 @@
+# SLIDE WTA-50 configuration for Wiki-325K.
+# Upstream revision: 2d10d46b5f6f1eda5d19f27038a596446fc17cee.
+# Shared model/training settings follow SLIDE-MP/SLIDE/Config_wiki325.csv.
+# Run from this inner SLIDE directory: ../bin/runme Config_wiki325_wta.csv.
+# Config.h controls HashFunction=2, BUCKETSIZE=128, binsize=8, LOADWEIGHT=0.
+# Use fresh log/checkpoint paths for independent repetitions.
+
+numLayer = 2
+RangePow = 6,15
+K = 2,5
+L = 1,50
+Sparsity = 1,0.005,1,1
+
+Batchsize = 128
+Rehash = 6400
+Rebuild = 128000
+InputDim = 1617899
+totRecords = 1778351
+totRecordsTest = 587084
+
+Lr = 0.0001
+Epoch = 30
+Stepsize = 1000
+sizesOfLayers = 128,325056
+
+trainData = ../dataset/Wiki325/train.txt
+testData = ../dataset/Wiki325/test.txt
+weight = ../dataset/Wiki325/savedWeights_wta.npz
+savedweight = ../dataset/Wiki325/savedWeights_wta.npz
+logFile = ../dataset/Wiki325/training_wta.log

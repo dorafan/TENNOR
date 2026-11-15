@@ -1,13 +1,9 @@
-
-
-
 #include "Network_New.h"
 #include <iostream>
 #include <math.h>
 #include <algorithm>
 #include "Config.h"
 #include <fstream>
-
 #include <omp.h>
 #include <atomic>
 
@@ -42,23 +38,19 @@
 #define DEBUG 1
 using namespace std;
 
-
 static std::atomic<int> G_THREADS{1};
 static int max_threads() { return omp_get_max_threads(); }
 
-
-
+/* 可选但强烈建议：关闭 OpenMP 的动态调度，否则运行时会擅自改线程数 */
 static void init_omp() {
-    omp_set_dynamic(0);
+    omp_set_dynamic(0);  // 必须在并行区外
 }
-
 
 #ifndef TRACE_PER_BIN
 #define TRACE_PER_BIN 1
 #endif
 
-
-
+// 统一落盘：同时写 tidy CSV（成员与计数）+ CSR 二进制（starts/bin2bucket）
 static void dump_bin_layout(const std::string& stem,
                             uint32_t B,
                             const std::vector<uint32_t>& starts,
@@ -70,7 +62,7 @@ static void dump_bin_layout(const std::string& stem,
         throw std::runtime_error("starts.back() != bin2bucket.size()");
     }
 
-
+    // 1) 每个 (bin, rank, bucket) 一行，整洁格式，适合后续 groupby/画图
     {
         std::ofstream out(stem + "_members.csv");
         out << "bin,rank,bucket\n";
@@ -83,7 +75,7 @@ static void dump_bin_layout(const std::string& stem,
         }
     }
 
-
+    // 2) 每个 bin 的 bucket 数量（直方图/分布图最方便）
     {
         std::ofstream out(stem + "_counts.csv");
         out << "bin,count\n";
@@ -92,7 +84,7 @@ static void dump_bin_layout(const std::string& stem,
         }
     }
 
-
+    // 3) CSR 二进制（快速重载/复现）：uint32_t 数组直接写
     {
         std::ofstream fa(stem + "_starts.bin", std::ios::binary);
         fa.write(reinterpret_cast<const char*>(starts.data()),
@@ -104,33 +96,29 @@ static void dump_bin_layout(const std::string& stem,
     }
 }
 
-
 struct ThreadStats {
     int tid = -1;
-    int last_bin = -1;
-    uint64_t total_ns = 0;
-    uint64_t total_bins = 0;
-    uint64_t total_bucket_ops = 0;
+    int last_bin = -1;  // 用于把连续 bin 压缩成区间
+    uint64_t total_ns = 0;          // 本线程总耗时（累计各 bin）
+    uint64_t total_bins = 0;        // 处理的 bin 数
+    uint64_t total_bucket_ops = 0;  // sum(end - begin)
 
-
+    // 将每个线程拿到的 bin 连续段做运行长度编码： [start, end] 闭区间
     std::vector<std::pair<uint32_t,uint32_t>> bin_ranges;
 
 #if TRACE_PER_BIN
-    std::vector<uint32_t> bins;
+    std::vector<uint32_t> bins;                             
     std::vector<uint32_t> bin_bucket_counts;
     std::vector<uint64_t> bin_ns;
 #endif
 };
 
-
-static void dump_thread_stats(const std::string& stem,
+static void dump_thread_stats(const std::string& stem,  // 文件前缀（不含扩展名）
                               uint32_t B, int T,
                               int layer, int epoch, int iter,
                               const std::vector<ThreadStats>& stats) {
 
-
-
-
+    // 线程汇总
     {
         std::ofstream out(stem + "_thread_summary.csv");
         out << "thread,bins,items,ns,ms,avg_ns_per_bin,avg_ns_per_item,ranges\n";
@@ -148,7 +136,7 @@ static void dump_thread_stats(const std::string& stem,
         }
     }
 
-
+    // 每线程的 bin 区间
     {
         std::ofstream out(stem + "_thread_ranges.csv");
         out << "thread,range_idx,bin_start,bin_end,bins_in_range\n";
@@ -163,7 +151,7 @@ static void dump_thread_stats(const std::string& stem,
     }
 
 #if TRACE_PER_BIN
-
+    // 逐 bin 追踪（可选，体量大）
     {
         std::ofstream out(stem + "_thread_bins.csv");
         out << "thread,seq,bin,items,ns\n";
@@ -177,7 +165,7 @@ static void dump_thread_stats(const std::string& stem,
     }
 #endif
 
-
+    // 元信息（简易 JSON，无第三方依赖）
     {
         std::ofstream out(stem + "_meta.json");
         out << "{\n"
@@ -194,8 +182,6 @@ static void dump_thread_stats(const std::string& stem,
     }
 }
 
-
-
 Network::Network(int *sizesOfLayers, NodeType *layersTypes, int noOfLayers, int batchSize, float lr, int inputdim,  int* K, int* L, int* RangePow, float* Sparsity, cnpy::npz_t arr) {
 
     _numberOfLayers = noOfLayers;
@@ -205,8 +191,6 @@ Network::Network(int *sizesOfLayers, NodeType *layersTypes, int noOfLayers, int 
     _learningRate = lr;
     _currentBatchSize = batchSize;
     _Sparsity = Sparsity;
-
-
 
     for (int i = 0; i < noOfLayers; i++) {
         if (i != 0) {
@@ -258,73 +242,15 @@ Network::Network(int *sizesOfLayers, NodeType *layersTypes, int noOfLayers, int 
     _inputIDs = new int[_currentBatchSize]();
 }
 
-
 Layer *Network::getLayer(int LayerID) {
     if (LayerID < _numberOfLayers)
         return _hiddenlayers[LayerID];
     else {
         cout << "LayerID out of bounds" << endl;
-
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths, int **labels, int *labelsize, int iter, bool rehash, bool rebuild, int numBatch, int epoch, int* L) {
-
 
     float logloss = 0.0;
     int lowconf = 0;
@@ -332,20 +258,12 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
     int* avg_retrieval = new int[_numberOfLayers]();
 
     int check = 0;
-
-
-
-
     float tmplr = _learningRate;
     if (ADAM) {
         tmplr = _learningRate * sqrt((1 - pow(BETA2, iter + 1))) /
                 (1 - pow(BETA1, iter + 1));
     }else{
-
     }
-
-
-
 
     auto t1 = std::chrono::high_resolution_clock::now();
     bool tmpRehash;
@@ -353,15 +271,12 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
     ofstream LSHfile;
     if(isLog == 1){
-        if(isExtLog == 1){
-            LSHfile.open("/scratch/anonymous/SLIDE-MP/dataset/LSH-epoch-"+ to_string(epoch)+".txt",  std::ios_base::app);
+        if(isHopper == 1){
+            LSHfile.open("/scratch/zqu4/SLIDE-MP/dataset/LSH-epoch-"+ to_string(epoch)+".txt",  std::ios_base::app);
         }else{
             LSHfile.open("../dataset/LSH-epoch-"+ to_string(epoch)+".txt",  std::ios_base::app);
         }
     }
-
-
-
 
     std::cout << "Start Update" <<std::endl;
     std::time_t now = std::time(nullptr);
@@ -379,21 +294,15 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
             tmpRebuild=false;
         }
         if (tmpRehash) {
-
             if(isLog == 1){
                 LSHfile << "Layer ID : " << _hiddenlayers[l]->_layerID << endl;
             }
 
         }
         if (tmpRebuild){
-
             _hiddenlayers[l]->updateTable();
         }
         int ratio = 1;
-
-
-
-
 
         std::cout << "Start Neurons update" <<std::endl;
         std::time_t now = std::time(nullptr);
@@ -406,39 +315,24 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                 std::cout << std::ctime(&now) << std::endl;
             }
 
-
-
-
             if (tmpRehash) {
-
-
-
 
                 std::cout << "Before erase, _AllNodes.size(): " << _hiddenlayers[l]->_AllNodes.size() << std::endl;
                 size_t numofErase = (1<<_hiddenlayers[l]->_RangePow)*BUCKETSIZE;
                 std::cout << "Nodes to erase: " << numofErase << std::endl;
 
-
                 auto first_to_erase = _hiddenlayers[l]->_AllNodes.begin();
                 auto last_to_erase = _hiddenlayers[l]->_AllNodes.begin() + numofErase;
-
 
                 _hiddenlayers[l]->_AllNodes.erase(first_to_erase, last_to_erase);
 
                 std::cout << "After erase, _AllNodes.size(): " << _hiddenlayers[l]->_AllNodes.size() << std::endl;
 
-
-
-
                 std::cout << "Step 1: Calculating total nodes to add from LSH..." << std::endl;
                 size_t totalNodesToAdd = 0;
-
                 for (int i = 0; i < (1 << _hiddenlayers[l]->_RangePow); i++) {
-
                     Bucket *tmpbuc = &(_hiddenlayers[l]->_hashTables->_bucket[0][i]);
-
                     for (int j = 0; j < BUCKETSIZE; j++) {
-
                         if (tmpbuc->arr[j] != nullptr) {
                             totalNodesToAdd++;
                         }
@@ -450,32 +344,22 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                     exit(1);
                 }
 
-
-
+                // 步骤 2: 使用 reserve 为 _AllNodes 预留足够的内存空间
                 std::cout << "Step 2: Reserving space in _AllNodes..." << std::endl;
                 std::cout << "Current _AllNodes size: " << _hiddenlayers[l]->_AllNodes.size() << std::endl;
                 std::cout << "New capacity will be at least: " << _hiddenlayers[l]->_AllNodes.size() + totalNodesToAdd << std::endl;
-
 
                 _hiddenlayers[l]->_AllNodes.reserve(_hiddenlayers[l]->_AllNodes.size() + totalNodesToAdd);
 
                 std::cout << "New _AllNodes capacity: " << _hiddenlayers[l]->_AllNodes.capacity() << std::endl;
 
-
-
                 std::cout << "Step 3: Adding nodes from LSH back to _AllNodes..." << std::endl;
 
-
                 for (int i = 0; i < (1 << _hiddenlayers[l]->_RangePow); i++) {
-
                     Bucket *tmpbuc = &(_hiddenlayers[l]->_hashTables->_bucket[0][i]);
 
-
                     for (int j = 0; j < BUCKETSIZE; j++) {
-
                         if (tmpbuc->arr[j] != nullptr) {
-
-
                             _hiddenlayers[l]->_AllNodes.push_back(*(tmpbuc->arr[j]));
                         }
                     }
@@ -485,7 +369,6 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
                 _hiddenlayers[l]->_hashTables->clear();
 
-
                 for (int row = 0; row < _hiddenlayers[l]->_L; ++row) {
                     const uint32_t M = 1u << _hiddenlayers[l]->_RangePow;
                     for (uint32_t j = 0; j < M; ++j) {
@@ -493,16 +376,9 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                     }
                 }
 
-
-
-
-
-
-
                 std::cout << "LSH Rehash update: 1st linear scan to update lsh signatures" << std::endl;
                 std::time_t now = std::time(nullptr);
                 std::cout << std::ctime(&now) << std::endl;
-
 
                 for (Node &node: _hiddenlayers[l]->_AllNodes) {
                     if (tmpRehash) {
@@ -511,14 +387,7 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                         hashes = _hiddenlayers[l]->_dwtaHasher->getHashEasy(node._weights, node._dim, TOPK);
                         int *hashIndices = _hiddenlayers[l]->_hashTables->hashesToIndex(hashes);
 
-
-
-
-
-
                         int pred = obl::OblLt(node.isDummy, 1);
-
-
 
                         node._lshIndex = obl::OblChoose(pred, hashIndices[0], node._lshIndex);
 
@@ -529,26 +398,19 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                     }
                 }
 
-
+                // 1) First comparator: sort by _lshIndex ascending, then by _isDummy
                 auto cmpFirst = [](const Node &a, const Node &b) {
 
-
-
-
-
-
-
-
+                    // 1) 比较 lshIndex：谁小谁应该在前
                     int idx_lt = obl::OblLt(a._lshIndex, b._lshIndex);
                     int idx_gt = obl::OblLt(b._lshIndex, a._lshIndex);
                     int idx_eq = 1 - idx_lt - idx_gt;
 
-
-
+                    // 2) 比较 isDummy：real(0) 应该在 dummy(>0) 前面，相当于升序
                     int dummy_lt = obl::OblLt(a.isDummy, b.isDummy);
 
-
-
+                    // 3) 如果 index 不相等，用 idx_lt；
+                    //    如果 index 相等，用 dummy_lt。
                     int res_bit = obl::OblChoose(idx_eq, dummy_lt, idx_lt);
 
                     return res_bit != 0;
@@ -558,10 +420,9 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                 now = std::time(nullptr);
                 std::cout << std::ctime(&now) << std::endl;
 
-
                 _hiddenlayers[l]->xorBitonicSort_Parallel(_hiddenlayers[l]->_AllNodes, cmpFirst);
 
-
+                //            identify the overflow ones withing the same LSH index
                 int currentIndex = -1;
                 int countForIndex = 0;
 
@@ -571,92 +432,53 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
                 for (auto &node: _hiddenlayers[l]->_AllNodes) {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+                     // 是否“同一个 index”：1 表示相等，0 表示不等
                     int sameIndex = obl::OblEq(node._lshIndex, currentIndex);
-
                     int isNew     = 1 - sameIndex;
 
-
                     int updatedCurrent = obl::OblChoose(isNew, node._lshIndex, currentIndex);
-
+                    // branchless 更新 count（在判断 overflow 之前应该是 0 或旧的 countForIndex）
                     int baseCount      = obl::OblChoose(isNew, 0, countForIndex);
 
-
+                    // 根据 baseCount 判定 overflow：前 BUCKETSIZE 个是 non-overflow
                     int nonOverflow    = obl::OblLt(baseCount, BUCKETSIZE);
                     int overflowFlag   = 1 - nonOverflow;
 
                     node._isOverflow   = overflowFlag;
 
-
                     currentIndex  = updatedCurrent;
                     countForIndex = baseCount + 1;
                 }
 
-
                 auto finalComparator = [](const Node &a, const Node &b) {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                    // 1) overflow 标志：non-overflow(0) < overflow(1)
                     int of_lt = obl::OblLt(a._isOverflow, b._isOverflow);
                     int of_eq = obl::OblEq(a._isOverflow, b._isOverflow);
 
-
+                    // 2) 在相同 overflow 里，按 lshIndex 升序
                     int idx_lt = obl::OblLt(a._lshIndex, b._lshIndex);
                     int idx_eq = obl::OblEq(a._lshIndex, b._lshIndex);
 
-
+                    // 3) 在相同 overflow + 相同 lshIndex 里，real(0) < dummy(1)
                     int dum_lt = obl::OblLt(a.isDummy, b.isDummy);
 
-
+                    // 第一层：如果 overflow 不同，用 of_lt 决定；如果相同，先用 idx_lt。
                     int res1 = of_lt;
                     int res2 = obl::OblChoose(of_eq, idx_lt, res1);
 
-
+                    // 只有在 overflow 和 lshIndex 都相等时，才用 dummy 来打破平局
                     int both_eq = of_eq & idx_eq;
                     int res3    = obl::OblChoose(both_eq, dum_lt, res2);
 
-
                     return res3 != 0;
                 };
-
 
                 std::cout << "LSH Rehash update: 2nd sort to move exceed nodes" << std::endl;
                 now = std::time(nullptr);
                 std::cout << std::ctime(&now) << std::endl;
 
-
-
                 _hiddenlayers[l]->xorBitonicSort_Parallel(_hiddenlayers[l]->_AllNodes, finalComparator);
-
 
                 std::cout << "LSH Rehash update: 3rd linear scan to write into LSH table" << std::endl;
                 now = std::time(nullptr);
@@ -681,19 +503,13 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                         }
 
                     }
-
                 }
-
-
 
             }
 
         }
 
-
         _hiddenlayers[l]->isLSHinit = true;
-
-
 
     }
 
@@ -701,35 +517,7 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         LSHfile.close();
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// process Input Layer with the first hidden layer (hidden_laer[0])
 
     std::cout << "Start FF" <<std::endl;
     now = std::time(nullptr);
@@ -745,43 +533,34 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         sizes[i] = new int [_numberOfLayers]();
     }
 
-
-
-
-
     std::cout << "Start FF: layer 0 " <<std::endl;
     now = std::time(nullptr);
     std::cout << std::ctime(&now) << std::endl;
-
     for(int i = 0; i < _currentBatchSize; i++) {
         int in;
 
         auto t1 = std::chrono::high_resolution_clock::now();
-
         in = _hiddenlayers[0]->ComputeActivation_FirstLayer(inputIndices, inputValues, lengths, activenodesperlayer, activeValuesperlayer, sizes, 0, i, _Sparsity[0]);
         avg_retrieval[0] += in;
 
     }
 
-
-
+    // implicitly require at least 2 layers
     for (int j = 1; j < _numberOfLayers; j++) {
         std::cout << "Start FF: layer  " << j <<std::endl;
         std::time_t now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
-
-
+        // batch query, to get a batch of inputs' Multi-Probe hash signatures in parallel
+        // for generating batch requests
         int ** requestIDs = new int * [_currentBatchSize]();
 
+        int K = _hiddenlayers[j]->_K; // K is the number of LSH hash functions at layer j
 
-        int K = _hiddenlayers[j]->_K;
-
-
-
-
-
-
-
+        // calculate number of LSH bucket that need to be retrieved based on the MP-WTA
+        // basically, K LSH functions will give us K signatures, MP-WTA will choose some of signatures and replace them with Max-2 or Max-3 values
+        // so, choose 1 of K and replace with Max-2 or Max-3 = K + K
+        // choose 2 of K and replace with Max-2 or Max-3 = [ K * (K-1) / 2 ] * (2 * 2)
+        // choose 3 of K and replace with Max-2 or Max-3 = { [ K * (K - 1) * (K - 2) ] / [3*2] } * (2*2*2)
         int numReq = K * (K - 1) * (K - 2) / (3*2) * (2*2*2) + K * (K - 1) / (2) * (2*2) + K + K + 1;
         int totalReq = numReq * _currentBatchSize;
 
@@ -794,30 +573,14 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         std::cout << std::ctime(&now) << std::endl;
 
         # pragma omp parallel for
-
         for (int i = 0; i < _currentBatchSize; i++){
             _hiddenlayers[j]->query(activenodesperlayer, activeValuesperlayer, sizes, j-1, i, _Sparsity[j], requestIDs);
 
-
-
-
-
-
-
-
-
-
-
-
         }
-
 
         std::cout << "Start FF: layer  " << j <<  " , generate Requests"  <<std::endl;
         now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
-
-
-
         if (_hiddenlayers[j]->_requester == nullptr
             ||_hiddenlayers[j]->_requester->_reqTable == nullptr){
             std::cout << "Re-init Requester" << std::endl;
@@ -826,7 +589,7 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
             _hiddenlayers[j]->_requester = new Requester(totalReq);
         }
         for (int i = 0; i < _currentBatchSize; i++) {
-
+            // 注意，这里generate出来的requestBuc里面是不包含dummy node的， 全是Nullptr
             _hiddenlayers[j]->_requester->generateRequestBucs(requestIDs[i], numReq, i, _hiddenlayers[j-1]->_noOfNodes, _hiddenlayers[j-1]->_type, j, _currentBatchSize);
 
         }
@@ -838,26 +601,17 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         std::cout << "Start FF: layer  " << j <<  " , preparning oHT"  <<std::endl;
         now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
-
-
-
-
-
-
+        // all requests buckets of a batch inputs are generated
+        // now, transfer the request table to a Two-Tier Hash Table (OHT)
         std::cout <<"Total requests : " << totalReq << std::endl;
         now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
         for (int i = 0; i < totalReq; i++) {
             RequestBuc  e ;
-
-
             if (_hiddenlayers[j]->_requester->_reqTable[i] == nullptr){
                 std::cout << "Request is nullprt" <<std::endl;
             }
             e = *_hiddenlayers[j]->_requester->_reqTable[i];
-
-
-
 
             _hiddenlayers[j]->_oht->prepare(std::move(e));
             if(_hiddenlayers[j]->_requester->_reqTable[i] == nullptr || _hiddenlayers[j]->_requester->_reqTable[i] == NULL){
@@ -871,71 +625,27 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
         _hiddenlayers[j]->_oht->build();
 
-
-
-
-
-
-
+        // here, the OHT is built without any padded dummy neurons, need to pad
         std::cout << "Start FF: layer  " << j <<  " , padding OHT"  <<std::endl;
         now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
         _hiddenlayers[j]->_oht->paddingnodes( _hiddenlayers[j-1]->_noOfNodes, _hiddenlayers[j-1]->_type, j, _currentBatchSize);
 
-
-
         std::cout << "Start FF: layer  " << j <<  " , OHT access by LSH"  <<std::endl;
         now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
+        // now, linear scan each bucket of LSH, and lookup it in OHT
+        // remember to do oblivious copy
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        // 假设：已完成 OHT build()，bins1_/bins2_ 定长，不再 push_back（避免并发 reallocate）
 
         if(PARALLEL){
             auto t_1 = std::chrono::high_resolution_clock::now();
-
             const uint32_t B = _hiddenlayers[j]->_oht->kB_;
             const uint32_t N = 1u << _hiddenlayers[j]->_RangePow;
 
             std::vector<std::vector<uint32_t>> bin_lists(B);
-
             for (uint32_t i = 0; i < N; i++) {
-
-
 
                 const int bucID = _hiddenlayers[j]->_hashTables->_bucket[0][i]._bucID;
                 const uint32_t b = std::hash<int>{}(bucID) % B;
@@ -949,10 +659,7 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                 bin_lists[b].push_back(i);
             }
 
-
-
-
-
+// 计算 starts 并拼接为扁平数组
            std::vector<uint32_t> starts(B + 1, 0);
            for (uint32_t b = 0; b < B; ++b) starts[b + 1] = starts[b] + (uint32_t)bin_lists[b].size();
 
@@ -964,30 +671,7 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                                 bin_lists[b].size() * sizeof(uint32_t));
            }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            // 生成一个带时间戳的前缀，避免覆盖
             auto now = std::chrono::system_clock::now();
             std::time_t tt = std::chrono::system_clock::to_time_t(now);
             std::tm tm{};
@@ -1000,21 +684,9 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                     + "-" + std::to_string(epoch) + "-" + std::to_string(iter);
             dump_bin_layout(stem, B, starts, bin2bucket);
 
-
             omp_set_dynamic(0);
 
-
-
-
-
-
-
-
-
-
-
-
-
+            // 读取外部配置（0 => 用最大可用）
             int req = THREATNUM;
             if (req <= 0) req = omp_get_max_threads();
 
@@ -1024,15 +696,10 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
             auto t_2 = std::chrono::high_resolution_clock::now();
 
-
-
-
-
             const int T_used = T;
             std::vector<ThreadStats> thr_stats(T_used);
 
             using Clock = std::chrono::steady_clock;
-
 
             int willEmpty = 0;
             if (B > N){
@@ -1041,13 +708,8 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                 willEmpty = B;
             }
 
-
-
-
-
 #pragma omp parallel for schedule(static) num_threads(T)
             for (int b = 0; b < (int)willEmpty; b++) {
-
                 if (!printed) {
                     #pragma omp critical
                     if (!printed) {
@@ -1061,13 +723,11 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                     }
                 }
 
-
-
                 int tid = omp_get_thread_num();
                 auto& ts = thr_stats[tid];
                 if (ts.tid < 0) ts.tid = tid;
 
-
+                // 维护连续区间
                 if (ts.bin_ranges.empty() || ts.last_bin + 1 != b) {
                     ts.bin_ranges.emplace_back((uint32_t)b, (uint32_t)b);
                 } else {
@@ -1075,30 +735,16 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                 }
                 ts.last_bin = b;
 
-
-
-
                 const uint32_t begin = starts[b];
                 const uint32_t end   = starts[b + 1];
 
-
-
                 auto t0 = Clock::now();
-
-
-
 
                 for (uint32_t off = begin; off < end; off++) {
                     const uint32_t idx = bin2bucket[off];
                     auto &lsh_bucket = _hiddenlayers[j]->_hashTables->_bucket[0][idx];
-                    _hiddenlayers[j]->_oht->lookupLSH_write(lsh_bucket);
+                    _hiddenlayers[j]->_oht->lookupLSH_write(lsh_bucket);   // 每次都会扫描该 bin 的 kZ_ 槽位
                 }
-
-
-
-
-
-
 
                 auto t1 = Clock::now();
                 uint64_t ns = (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
@@ -1113,21 +759,9 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                 ts.bin_ns.push_back(ns);
 #endif
 
-
-
-
             }
 
-
             auto t_3 = std::chrono::high_resolution_clock::now();
-
-
-
-
-
-
-
-
 
             std::vector<std::vector<uint32_t>>().swap(bin_lists);
             std::vector<uint32_t>().swap(starts);
@@ -1141,65 +775,42 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
             std::cout << "time of parallel: " << tf_2/1000 << std::endl;
             std::cout << "time of total : " << tf_3/1000 << std::endl;
 
-
-
             std::string stemmp = "../dataset/binmaps/" + std::to_string(B) + "-" + std::to_string(THREATNUM)
                                + "-" + std::to_string(epoch) + "-" + std::to_string(iter);
             dump_thread_stats(stemmp, B, T_used, j, epoch, iter, thr_stats);
 
-
         }
         else{
-
-
-
+            // here we assume there always only 1 LSH table
             std::cout << "size of hash table : " << (1 << _hiddenlayers[j]->_RangePow) << std::endl;
             for (int i = 0; i < (1 << _hiddenlayers[j]->_RangePow); i++) {
-
-
-
-
-
-
-
+    //              In Elains'paper, it requires the keys of input set for build and query be distinct, even if it use standard padding and oblivious sort
+    //              The possible reason is -- elain read content from OHT to query, so if there are identical keys, it cannot decide which one should be found for the query
+    //              In our case, we are using query to write into OHT, so the multiple elements with the same keys in the same bin won't be an issue
+    //              cause we will linear scan the entire bin and each elements and do Obliivous copy on each of the elements
+    //              Remember to CORRECTLY implement the lookup code here, because in the next lookup for OHT->Requester,
+    //                  we are using OHT to write into Requester, the order is flipped
                 _hiddenlayers[j]->_oht->lookupLSH_write(_hiddenlayers[j]->_hashTables->_bucket[0][i]);
             }
         }
 
-
-
-
-
-
-
-
-
-
         std::cout << "Start FF: layer  " << j <<  " , OHT access by Requester"  <<std::endl;
         now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
-
-
-
-
         for (int i = 0; i < totalReq; i++) {
             _hiddenlayers[j]->_oht->lookup(*(_hiddenlayers[j]->_requester->_reqTable[i]));
         }
 
-
-
+        // now, all neurons are read from LSH, stored in Requests Table
         for (int i = 0; i < _currentBatchSize; i++){
             activenodesperlayer[i][j] = new int  [BUCKETSIZE * numReq]();
             activeValuesperlayer[i][j] = new float  [BUCKETSIZE * numReq]();
             sizes[i][j] = BUCKETSIZE * numReq;
         }
 
-
         std::cout << "Start FF: layer  " << j <<  " , compute activation"  <<std::endl;
         now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
-
-
         # pragma  omp parallel for
         for (int i = 0; i < _currentBatchSize; i++) {
             float maxValue = 0;
@@ -1209,24 +820,18 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
             for (int k = i * numReq; k < (i + 1) * numReq; k++) {
                 for (int n = 0; n < BUCKETSIZE; n ++) {
                     Node * tmpnode = _hiddenlayers[j]->_requester->_reqTable[k]->arr[n];
-
+                    // if a neuron is dummy, then its ID = -1, its activation = 0
                     float activation = tmpnode->getActivation(activenodesperlayer[i][j-1], activeValuesperlayer[i][j-1], sizes[i][j-1], i);
                     activenodesperlayer[i][j][n] = tmpnode->_IDinLayer;
                     activeValuesperlayer[i][j][n] = activation;
 
                     if(_hiddenlayers[j]->_type == NodeType::Softmax){
-
-
-
-
-
                        int flag = obl::OblGt(activeValuesperlayer[i][j][n], maxValue);
                        maxValue = obl::OblChoose(flag, activeValuesperlayer[i][j][n], maxValue);
 
                     }
                 }
             }
-
 
             if(_hiddenlayers[j]->_type == NodeType::Softmax) {
                 for (int k = i * numReq; k < (i + 1) * numReq; k++) {
@@ -1244,11 +849,9 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
         }
 
-
         for (int i = 0; i < _currentBatchSize; i++) {
             delete[] requestIDs[i];
         }
-
 
         delete[] requestIDs;
 
@@ -1256,14 +859,10 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
     }
 
-
-
+//    Now, do back propagation with snoopy
     std::cout << "Start BP" << std::endl;
     now = std::time(nullptr);
     std::cout << std::ctime(&now) << std::endl;
-
-
-
 
     for (int j = _numberOfLayers - 1; j >= 0; j--) {
         std::cout << "Start BP: layer  " << j <<std::endl;
@@ -1271,14 +870,10 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         std::cout << std::ctime(&now) << std::endl;
 
         int K = _hiddenlayers[j]->_K;
-
         int numReq = K * (K - 1) * (K - 2) / (3*2) * (2*2*2) + K * (K - 1) / (2) * (2*2) + K + K + 1;
         int totalReq = numReq * _currentBatchSize;
-
-
          for (int i = 0; i < _currentBatchSize; i++) {
             if (j == _numberOfLayers - 1) {
-
                 for (int k = i * numReq; k < (i + 1) * numReq; k++) {
                     for (int n = 0; n < BUCKETSIZE; n++) {
                         Node * tmpnode = _hiddenlayers[j]->_requester->_reqTable[k]->arr[n];
@@ -1289,7 +884,6 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
             if (j != 0) {
                 int Kprev = _hiddenlayers[j-1]->_K;
-
                 int numReqprev = Kprev * (Kprev - 1) * (Kprev - 2) / (3*2) * (2*2*2) + Kprev * (Kprev - 1) / (2) * (2*2) + Kprev + Kprev + 1;
                 int totalReqprev = numReqprev * _currentBatchSize;
 
@@ -1318,7 +912,7 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                     }
                 }
             } else {
-
+                // deal with first layer's backpropagation
                 for (int n = 0; n < _hiddenlayers[j]->_noOfNodes; n++){
                     _hiddenlayers[j]->getNodebyID(n)->backPropagateFirstLayer(inputIndices[i], inputValues[i], lengths[i], tmplr, i);
                 }
@@ -1326,15 +920,7 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         }
     }
 
-
     std::cout << "Free Memory"  <<std::endl;
-
-
-
-
-
-
-
     for (int i = 0; i < _currentBatchSize; i++) {
         for (int j = 0; j < _numberOfLayers; j++) {
             if (activenodesperlayer[i][j] != nullptr)
@@ -1350,31 +936,23 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
     delete[] activenodesperlayer;
     delete[] activeValuesperlayer;
 
-
-
     int ratio = 1;
     for (int l = 1; l < _numberOfLayers; l++) {
-
         std::cout << "Start Requester sort by ID"  <<std::endl;
         std::time_t now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
-
         _hiddenlayers[l]->_requester->sortByIDBitonicPtr();
 
         int totalReqMerge = _hiddenlayers[l]->_requester->_totalReqs;
 
-
         std::cout << "Start Requester Merge"  <<std::endl;
         now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
-
-
         _hiddenlayers[l]->_requester->obl_mergeSameBucID(totalReqMerge);
 
         std::cout << "End Requester Merge"  <<std::endl;
         now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
-
 
         std::cout << "Start Neuron ADAM update"  <<std::endl;
         now = std::time(nullptr);
@@ -1392,12 +970,10 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                         tmp->_t[d] = 0;
                     }
 
-
                     tmp->_adamAvgMombias = BETA1 * tmp->_adamAvgMombias + (1 - BETA1) * tmp->_tbias;
                     tmp->_adamAvgVelbias = BETA2 * tmp->_adamAvgVelbias + (1 - BETA2) * tmp->_tbias * tmp->_tbias;
                     tmp->_bias += ratio * tmplr * tmp->_adamAvgMombias / (sqrt(tmp->_adamAvgVelbias) + EPS);
                     tmp->_tbias = 0;
-
 
                 }
                 else{
@@ -1411,20 +987,9 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
 
-
         std::cout << "Start write Requester back to LSH"  <<std::endl;
         now = std::time(nullptr);
         std::cout << std::ctime(&now) << std::endl;
-
-
-
-
-
-
-
-
-
-
 
         _hiddenlayers[l]->_oht->clear();
         std::cout <<"Total requests : " << totalReqMerge << std::endl;
@@ -1432,21 +997,15 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         std::cout << std::ctime(&now) << std::endl;
         for (int i = 0; i < totalReqMerge; i++) {
             RequestBuc  e ;
-
-
             if (_hiddenlayers[l]->_requester->_reqTable[i] == nullptr){
                 std::cout << "Request is nullprt" <<std::endl;
             }
             e = *_hiddenlayers[l]->_requester->_reqTable[i];
 
-
-
-
             _hiddenlayers[l]->_oht->prepare(std::move(e));
             if(_hiddenlayers[l]->_requester->_reqTable[i] == nullptr || _hiddenlayers[l]->_requester->_reqTable[i] == NULL){
                 std::cout<<"The Request in ReqTable is null after generating OHT, ERROR 1" <<std::endl;
             }
-
 
         }
 
@@ -1461,11 +1020,10 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         std::cout << std::ctime(&now) << std::endl;
 
         if (PARALLEL){
-
             const uint32_t B = _hiddenlayers[l]->_oht->kB_;
             const uint32_t N = 1u << _hiddenlayers[l]->_RangePow;
 
-
+// 构建调度表（单遍）
             std::vector<std::vector<uint32_t>> bin_lists(B);
             for (uint32_t i = 0; i < N; ++i) {
                 const int bucID = _hiddenlayers[l]->_hashTables->_bucket[0][i]._bucID;
@@ -1486,8 +1044,8 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
                     std::memcpy(&bin2bucket[starts[b]], bin_lists[b].data(),
                                 bin_lists[b].size() * sizeof(uint32_t));
             }
-
-
+            // 已有：B, starts (B+1), bin2bucket (长度 starts.back())
+// 直接并行按 bin 处理
 #pragma omp parallel for schedule(static)
             for (int b = 0; b < (int)B; ++b) {
                 const uint32_t begin = starts[b];
@@ -1506,25 +1064,14 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
         }
         else{
                     for (int i = 0; i < (1 << _hiddenlayers[l]->_RangePow); i++) {
-
-
-
-
+//            This time, the query is stil LSH bucket, but LSH bucket read content from oht,
+//            which means, write oht content into LSH bucket.
             _hiddenlayers[l]->_oht->lookupLSH_read(_hiddenlayers[l]->_hashTables->_bucket[0][i]);
         }
 
         }
 
-
-
-
-
         _hiddenlayers[l]->_oht->clear();
-
-
-
-
-
 
         std::cout << "End write Requester back to LSH"  <<std::endl;
         now = std::time(nullptr);
@@ -1535,24 +1082,15 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
 
         std::cout << "End delete Requester"  << std::endl;
 
-
     }
-
-
-
-
-
-
 
     auto t2 = std::chrono::high_resolution_clock::now();
     int timeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
 
-
-
     if (DEBUG&rehash) {
         ofstream retrivalFile;
-        if(isExtLog == 1){
-            retrivalFile.open("/scratch/anonymous/SLIDE-MP/dataset/retrival.txt",  std::ios_base::app);
+        if(isHopper == 1){
+            retrivalFile.open("/scratch/zqu4/SLIDE-MP/dataset/retrival.txt",  std::ios_base::app);
         }else{
             retrivalFile.open("../dataset/retrival.txt",  std::ios_base::app);
         }
@@ -1570,14 +1108,12 @@ int Network::ProcessInput(int **inputIndices, float **inputValues, int *lengths,
     return logloss;
 }
 
-
 void Network::saveWeights(string file)
 {
     for (int i=0; i< _numberOfLayers; i++){
         _hiddenlayers[i]->saveWeights(file);
     }
 }
-
 
 Network::~Network() {
 

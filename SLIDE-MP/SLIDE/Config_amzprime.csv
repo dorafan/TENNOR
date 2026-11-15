@@ -6,9 +6,9 @@ Sparsity = 1,0.005,1,1
 Batchsize = 128
 Rehash=6400
 Rebuild=12800
-InputDim = 135909
+InputDim = 135908
 totRecords = 42438
-totRecordsTest = 91080
+totRecordsTest = 14146
 
 BUCKETSIZE = 256
 binsize = 8
@@ -20,9 +20,9 @@ isMPWTA = 1
 
 isRandom = 0
 
-isExtLog = 1
+isHopper = 0
 
-isLog = 0
+isLog = 1
 
 
 Lr=0.0001
@@ -38,10 +38,9 @@ epochInit=0
 trainData=../dataset/AmzPrime/train.txt
 testData=../dataset/AmzPrime/test.txt
 
-weight=../dataset/AmzPrime/mp/savedWeights.npz
-savedweight=../dataset/AmzPrime/mp/savedWeights.npz
+weight=../dataset/savedWeights.npz
+savedweight=../dataset/savedWeights.npz
 
-logFile=../dataset/AmzPrime/mp/log.txt
-logFile=../dataset/AmzPrime/mp/log.txt
+logFile=../dataset/training.log
 
-retrivalfile=../dataset/AmzPrime/mp/retrival.txt
+retrivalfile=../dataset/retrival.txt

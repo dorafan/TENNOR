@@ -1,7 +1,3 @@
-
-
-
-
 #pragma once
 #include "Layer_New.h"
 #include <chrono>
@@ -22,8 +18,6 @@ private:
     float * _Sparsity;
     int* _inputIDs;
     int  _currentBatchSize;
-
-
 
 public:
     Network(int* sizesOfLayers, NodeType* layersTypes, int noOfLayers, int batchsize, float lr, int inputdim, int* K, int* L, int* RangePow, float* Sparsity, cnpy::npz_t arr);

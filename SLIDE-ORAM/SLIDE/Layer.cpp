@@ -10,7 +10,6 @@
 
 using namespace std;
 
-
 Layer::Layer(int noOfNodes, int previousLayerNumOfNodes, int layerID, NodeType type, int batchsize,  int K, int L, int RangePow, float Sparsity, float* weights, float* bias, float *adamAvgMom, float *adamAvgVel) {
     _layerID = layerID;
     _noOfNodes = noOfNodes;
@@ -23,7 +22,7 @@ Layer::Layer(int noOfNodes, int previousLayerNumOfNodes, int layerID, NodeType t
     _RangeRow = RangePow;
     _previousLayerNumOfNodes = previousLayerNumOfNodes;
 
-
+// create a list of random nodes just in case not enough nodes from hashtable for active nodes.
     _randNode = new int[_noOfNodes];
     for (int n = 0; n < _noOfNodes; n++) {
         _randNode[n] = n;
@@ -31,7 +30,7 @@ Layer::Layer(int noOfNodes, int previousLayerNumOfNodes, int layerID, NodeType t
 
     std::random_shuffle(_randNode, _randNode + _noOfNodes);
 
-
+// Hash-table initialization by Beidi.
     _hashTables = new LSH(_K, _L, RangePow);
 
     for (int i = 0; i < _L; i++) {
@@ -74,7 +73,6 @@ Layer::Layer(int noOfNodes, int previousLayerNumOfNodes, int layerID, NodeType t
         generate(_weights, _weights + _noOfNodes * previousLayerNumOfNodes, [&] () { return distribution(dre); });
         generate(_bias, _bias + _noOfNodes, [&] () { return distribution(dre); });
 
-
         if (ADAM)
         {
             _adamAvgMom = new float[_noOfNodes * previousLayerNumOfNodes]();
@@ -85,8 +83,6 @@ Layer::Layer(int noOfNodes, int previousLayerNumOfNodes, int layerID, NodeType t
         int total_time = 0;
 
     auto t1 = std::chrono::high_resolution_clock::now();
-
-
 
     for (size_t i = 0; i < noOfNodes; i++)
     {
@@ -105,7 +101,6 @@ Layer::Layer(int noOfNodes, int previousLayerNumOfNodes, int layerID, NodeType t
         _inputIDs = new int[batchsize]();
     }
 }
-
 
 void Layer::updateTable()
 {
@@ -130,12 +125,10 @@ void Layer::updateTable()
     }
 }
 
-
 void Layer::updateRandomNodes()
 {
     std::random_shuffle(_randNode, _randNode + _noOfNodes);
 }
-
 
 void Layer::addtoHashTable(float* weights, int length, float bias, int ID)
 {
@@ -161,26 +154,22 @@ void Layer::addtoHashTable(float* weights, int length, float bias, int ID)
 
 }
 
-
 Node* Layer::getNodebyID(int nodeID)
 {
     assert(("nodeID less than _noOfNodes" , nodeID < _noOfNodes));
     return _Nodes[nodeID];
 }
 
-
 Node ** Layer::getAllNodes()
 {
     return _Nodes;
 }
-
 
 float Layer::getNomalizationConstant(int inputID)
 {
     assert(("Error Call to Normalization Constant for non - softmax layer", _type == NodeType::Softmax));
     return _normalizationConstants[inputID];
 }
-
 
 float innerproduct(int* index1, float* value1, int len1, float* value2){
     float total = 0;
@@ -189,7 +178,6 @@ float innerproduct(int* index1, float* value1, int len1, float* value2){
     }
     return total;
 }
-
 
 float collision(int* hashes, int* table_hashes, int k, int l){
     int cp = 0;
@@ -207,18 +195,16 @@ float collision(int* hashes, int* table_hashes, int k, int l){
     return cp*1.0/(l/k);
 }
 
-
 int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float** activeValuesperlayer, int* lengths, int layerIndex, int inputID, int* label, int labelsize, float Sparsity, int iter)
 {
 
-
-
+    //Beidi. Query out all the candidate nodes
     int len;
     int in =0;
     if(Sparsity==1.0){
         len = _noOfNodes;
         lengths[layerIndex + 1] = len;
-        activenodesperlayer[layerIndex + 1] = new int[len];
+        activenodesperlayer[layerIndex + 1] = new int[len]; //assuming not intitialized;
         for (int i = 0; i < len; i++)
         {
             activenodesperlayer[layerIndex + 1][i] = i;
@@ -226,9 +212,7 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
     }
     else {
 
-
         if (Mode==1) {
-
 
             int *hashes;
             auto t0 = std::chrono::high_resolution_clock::now();
@@ -245,12 +229,12 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
             int *hashIndices = _hashTables->hashesToIndex(hashes);
             int **actives = _hashTables->retrieveRaw(hashIndices);
 
-
+            // Get candidates from hashtable
             auto t00 = std::chrono::high_resolution_clock::now();
 
             auto t1 = std::chrono::high_resolution_clock::now();
             std::map<int, size_t> counts;
-
+            // Make sure that the true label node is in candidates
             if (_type == NodeType::Softmax) {
                 if (labelsize > 0) {
                     for (int i=0; i<labelsize ;i++){
@@ -258,7 +242,6 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
                     }
                 }
             }
-
 
             for (int i = 0; i < _L; i++) {
                 if (actives[i] == NULL) {
@@ -276,48 +259,7 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
             }
             auto t11 = std::chrono::high_resolution_clock::now();
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            //thresholding
             auto t3 = std::chrono::high_resolution_clock::now();
             vector<int> vect;
             for (auto &&x : counts){
@@ -356,10 +298,10 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
             int *hashIndices = _hashTables->hashesToIndex(hashes);
             int **actives = _hashTables->retrieveRaw(hashIndices);
 
-
+            // Get candidates from hashtable
 
             std::map<int, size_t> counts;
-
+            // Make sure that the true label node is in candidates
             if (_type == NodeType::Softmax) {
                 if (labelsize > 0) {
                     for (int i=0; i<labelsize ;i++){
@@ -367,7 +309,6 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
                     }
                 }
             }
-
 
             for (int i = 0; i < _L; i++) {
                 if (actives[i] == NULL) {
@@ -399,7 +340,6 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
                     }
                 }
 
-
                 if (counts.size() < 1000) {
                     for (int i = 0; i < _noOfNodes; i++) {
                         if (counts.size() >= 1000) {
@@ -421,9 +361,6 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
                 activenodesperlayer[layerIndex + 1][i] = x.first;
                 i++;
             }
-
-
-
 
             delete[] hashes;
             delete[] hashIndices;
@@ -457,11 +394,8 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
                 }
             }
 
-
-
             auto t2 = std::chrono::high_resolution_clock::now();
             auto timeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-
 
         }
 
@@ -497,11 +431,7 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
         }
     }
 
-
-
-
-
-    activeValuesperlayer[layerIndex + 1] = new float[len];
+    activeValuesperlayer[layerIndex + 1] = new float[len]; //assuming its not initialized else memory leak;
     float maxValue = 0;
     if (_type == NodeType::Softmax)
         _normalizationConstants[inputID] = 0;
@@ -532,7 +462,6 @@ int Layer::queryActiveNodeandComputeActivations(int** activenodesperlayer, float
     return in;
 }
 
-
 void Layer::saveWeights(string file)
 {
     if (_layerID==0) {
@@ -551,7 +480,6 @@ void Layer::saveWeights(string file)
         cout<<_weights[0]<<" "<<_weights[1]<<endl;
     }
 }
-
 
 Layer::~Layer()
 {

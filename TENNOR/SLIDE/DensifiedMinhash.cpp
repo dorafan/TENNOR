@@ -12,7 +12,7 @@ typedef pair<int, float> PAIR;
 
 struct cmp {
     bool operator()(const PAIR &a, const PAIR &b) {
-        return a.second > b.second;
+        return a.second > b.second; //lower is better
     };
 };
 
@@ -22,7 +22,6 @@ DensifiedMinhash::DensifiedMinhash(int numHashes, int noOfBitsToHash)
     _numhashes = numHashes;
     _rangePow = noOfBitsToHash;
     _lognumhash = log2(numHashes);
-
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -41,11 +40,10 @@ DensifiedMinhash::DensifiedMinhash(int numHashes, int noOfBitsToHash)
 
 }
 
-
 void DensifiedMinhash::getMap(int n, int* binids)
 {
     int range = 1 << _rangePow;
-
+    // binsize is the number of times the range is larger than the total number of hashes we need.
     int binsize = ceil(1.0*range / _numhashes);
     for (size_t i = 0; i < n; i++)
     {
@@ -53,7 +51,6 @@ void DensifiedMinhash::getMap(int n, int* binids)
         h *= _randa;
         h ^= h >> 13;
         h *= 0x85ebca6b;
-
         int tmp = i;
         uint32_t curhash = MurmurHash ((char *)&i, (uint32_t) sizeof(i), (uint32_t)_randa);
         curhash = curhash & ((1<<_rangePow)-1);
@@ -62,12 +59,11 @@ void DensifiedMinhash::getMap(int n, int* binids)
 
 }
 
-
 int * DensifiedMinhash::getHashEasy(int* binids, float* data, int dataLen, int topK)
 {
 
-
-
+    // binsize is the number of times the range is larger than the total number of hashes we need.
+// read the data and add it to priority queue O(dlogk approx 7d) with index as key and values as priority value, get topk index O(1) and apply minhash on retuned index.
 
     priority_queue<PAIR, vector<PAIR>, cmp> pq;
 
@@ -82,17 +78,13 @@ int * DensifiedMinhash::getHashEasy(int* binids, float* data, int dataLen, int t
         pq.pop();
     }
 
-
-
     int *hashes = new int[_numhashes];
-
     int *hashArray = new int[_numhashes];
 
     for (size_t i = 0; i < _numhashes; i++)
     {
         hashes[i] = INT_MIN;
     }
-
 
     for (size_t i = 0; i < topK; i++)
     {
@@ -104,7 +96,6 @@ int * DensifiedMinhash::getHashEasy(int* binids, float* data, int dataLen, int t
             hashes[binid] = index;
         }
     }
-
 
     for (size_t i = 0; i < _numhashes; i++)
     {
@@ -123,7 +114,7 @@ int * DensifiedMinhash::getHashEasy(int* binids, float* data, int dataLen, int t
                     _numhashes);
 
             next = hashes[index];
-            if (count > 100)
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
@@ -131,7 +122,6 @@ int * DensifiedMinhash::getHashEasy(int* binids, float* data, int dataLen, int t
     delete[] hashes;
     return hashArray;
 }
-
 
 int * DensifiedMinhash::getHash(int* indices, float* data, int* binids, int dataLen)
 {
@@ -173,22 +163,19 @@ int * DensifiedMinhash::getHash(int* indices, float* data, int* binids, int data
                     _numhashes);
 
             next = hashes[index];
-            if (count > 100)
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
     }
     delete[] hashes;
-
     return hashArray;
 }
 
-
 int DensifiedMinhash::getRandDoubleHash(int binid, int count) {
     unsigned int tohash = ((binid + 1) << 6) + count;
-    return (_randHash[0] * tohash << 3) >> (32 - _lognumhash);
+    return (_randHash[0] * tohash << 3) >> (32 - _lognumhash); // _lognumhash needs to be ceiled.
 }
-
 
 DensifiedMinhash::~DensifiedMinhash()
 {

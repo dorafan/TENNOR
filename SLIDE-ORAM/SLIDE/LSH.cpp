@@ -15,7 +15,6 @@ LSH::LSH(int K, int L, int RangePow)
 	_RangePow = RangePow;
 	_bucket = new Bucket*[L];
 
-
 	for (int i = 0; i < L; i++)
 	{
 		_bucket[i] = new Bucket[1 << _RangePow];
@@ -27,7 +26,6 @@ LSH::LSH(int K, int L, int RangePow)
 	 std::mt19937 gen(rd());
 	std::uniform_int_distribution<> dis(1, INT_MAX);
 
-
 	for (int i = 0; i < _K*_L; i++)
 	{
 		rand1[i] = dis(gen);
@@ -35,7 +33,6 @@ LSH::LSH(int K, int L, int RangePow)
 			rand1[i]++;
 	}
 }
-
 
 void LSH::clear()
 {
@@ -46,7 +43,6 @@ void LSH::clear()
 
     }
 }
-
 
 void LSH::count()
 {
@@ -62,7 +58,6 @@ void LSH::count()
 		cout <<"TABLE "<< j << "Total "<< total << endl;
 	}
 }
-
 
 int* LSH::hashesToIndex(int * hashes)
 {
@@ -99,7 +94,6 @@ int* LSH::hashesToIndex(int * hashes)
 	return indices;
 }
 
-
 int* LSH::add(int *indices, int id)
 {
 	int * secondIndices = new int[_L];
@@ -108,18 +102,14 @@ int* LSH::add(int *indices, int id)
 		secondIndices[i] = _bucket[i][indices[i]].add(id);
 	}
 
-
 	return secondIndices;
 }
-
 
 int LSH::add(int tableId, int indices, int id)
 {
 	int secondIndices = _bucket[tableId][indices].add(id);
 	return secondIndices;
 }
-
-
 
 int** LSH::retrieveRaw(int *indices)
 {
@@ -132,7 +122,6 @@ int** LSH::retrieveRaw(int *indices)
 	}
 	return rawResults;
 }
-
 
 int LSH::retrieve(int table, int indices, int bucket)
 {

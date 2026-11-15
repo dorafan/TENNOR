@@ -38,7 +38,7 @@ WtaHash::WtaHash(int numHashes, int noOfBitsToHash)
 int * WtaHash::getHash(float* data)
 {
 
-
+    // binsize is the number of times the range is larger than the total number of hashes we need.
 
     int *hashes = new int[_numhashes];
     float *values = new float[_numhashes];

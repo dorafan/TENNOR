@@ -1,6 +1,6 @@
 RangePow = 6,18
 K = 2,6
-L = 20,50
+L = 1,1
 Sparsity = 1,0.005,1,1
 
 Batchsize = 128
@@ -14,18 +14,19 @@ BUCKETSIZE = 256
 binsize = 8
 isBruteForce = 0
 NNSorMPS = 0
+BFnumber = 0
 
-isMPWTA = 0
+isMPWTA = 1
 
 isRandom = 0
 
-isExtLog = 0
+isHopper = 0
 
 isLog = 1
 
 
 Lr=0.0001
-Epoch=10
+Epoch=30
 Stepsize=1000
 
 sizesOfLayers=128,670091
@@ -40,5 +41,6 @@ testData=../dataset/Amazon/test.txt
 weight=../dataset/savedWeights.npz
 savedweight=../dataset/savedWeights.npz
 
-logFile=../dataset/log.txt
-logFile=../dataset/log.txt
+logFile=../dataset/training.log
+
+retrivalfile=../dataset/retrival.txt

@@ -1,0 +1,30 @@
+# SLIDE WTA-50 configuration for Amazon-Sub.
+# Upstream revision: 2d10d46b5f6f1eda5d19f27038a596446fc17cee.
+# Shared model/training settings follow SLIDE-MP/SLIDE/Config_amzprime.csv.
+# Run from this inner SLIDE directory: ../bin/runme Config_amzprime_wta.csv.
+# Config.h controls HashFunction=2, BUCKETSIZE=128, binsize=8, LOADWEIGHT=0.
+# Use fresh log/checkpoint paths for independent repetitions.
+
+numLayer = 2
+RangePow = 3,12
+K = 1,4
+L = 1,50
+Sparsity = 1,0.005,1,1
+
+Batchsize = 128
+Rehash = 6400
+Rebuild = 12800
+InputDim = 135908
+totRecords = 42438
+totRecordsTest = 14146
+
+Lr = 0.0001
+Epoch = 30
+Stepsize = 1000
+sizesOfLayers = 128,92814
+
+trainData = ../dataset/AmzPrime/train.txt
+testData = ../dataset/AmzPrime/test.txt
+weight = ../dataset/AmzPrime/savedWeights_wta.npz
+savedweight = ../dataset/AmzPrime/savedWeights_wta.npz
+logFile = ../dataset/AmzPrime/training_wta.log

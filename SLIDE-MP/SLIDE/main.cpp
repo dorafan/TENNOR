@@ -31,14 +31,14 @@ int BUCKETSIZE = 256;
 int binsize = 8;
 
 int isBruteForce = 0;
-int NNSorMPS = 0;
+int NNSorMPS = 0; // 0 means brute force nns; 1 means brute force MPS
 int BFnumber = 0;
 
 int isMPWTA = 0;
 
 int isRandom = 0;
 
-int isExtLog = 0;
+int isHopper = 0;
 
 int isLog = 1;
 
@@ -274,9 +274,9 @@ void parseconfig(string filename)
         {
             isRandom = atoi(trim(second).c_str());
         }
-        else if (trim(first) == "isExtLog")
+        else if (trim(first) == "isHopper")
         {
-            isExtLog = atoi(trim(second).c_str());
+            isHopper = atoi(trim(second).c_str());
         }
         else if (trim(first) == "isLog")
         {
@@ -299,7 +299,7 @@ void EvalDataSVM(int numBatchesTest,  Network* _mynet, int iter){
     int debugnumber = 0;
     std::ifstream testfile(testData);
     string str;
-
+    //Skipe header
     std::getline( testfile, str );
 
     ofstream outputFile(logFile,  std::ios_base::app);
@@ -375,19 +375,13 @@ void EvalDataSVM(int numBatchesTest,  Network* _mynet, int iter){
 
         delete[] sizes;
 
-
         delete[] labels;
-
         for (size_t d = 0; d < Batchsize; d++) {
             delete[] records[d];
             delete[] values[d];
         }
-
         delete[] records;
-
         delete[] values;
-
-
 
     }
     testfile.close();
@@ -400,7 +394,7 @@ void ReadDataSVM(int numBatches,  Network* _mynet, int epoch){
     std::ifstream file(trainData);
     float accumlogss = 0;
     std::string str;
-
+    //skipe header
     std::getline( file, str );
     int totalTime = 0;
     for (size_t i = 0; i < numBatches; i++) {
@@ -488,8 +482,8 @@ void ReadDataSVM(int numBatches,  Network* _mynet, int epoch){
 
         if(rehash || rebuild){
             ofstream LSHfile;
-            if(isExtLog == 1){
-                LSHfile.open("/scratch/anonymous/SLIDE-MP/dataset/LSH-epoch-"+ to_string(epoch)+".txt",  std::ios_base::app);
+            if(isHopper == 1){
+                LSHfile.open("/scratch/zqu4/SLIDE-MP/dataset/LSH-epoch-"+ to_string(epoch)+".txt",  std::ios_base::app);
             }else{
                 LSHfile.open("../dataset/LSH-epoch-"+ to_string(epoch)+".txt",  std::ios_base::app);
             }
@@ -529,14 +523,7 @@ void ReadDataSVM(int numBatches,  Network* _mynet, int epoch){
 
 int main(int argc, char* argv[])
 {
-
-
-
     parseconfig(argv[1]);
-
-
-
-
 
     int numBatches = totRecords/Batchsize;
     int numBatchesTest = totRecordsTest/Batchsize;
@@ -557,10 +544,6 @@ int main(int argc, char* argv[])
     auto t2 = std::chrono::high_resolution_clock::now();
     int timeDiffInMiliseconds = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
     std::cout << "Network Initialization takes " << 1.0 * timeDiffInMiliseconds << std::endl;
-
-
-
-
 
     for (int e=epochInit; e< Epoch; e++) {
         ofstream outputFile(logFile,  std::ios_base::app);

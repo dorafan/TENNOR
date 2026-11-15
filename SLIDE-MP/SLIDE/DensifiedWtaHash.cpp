@@ -21,10 +21,9 @@ DensifiedWtaHash::DensifiedWtaHash(int numHashes, int K, int L, int noOfBitsToHa
     std::random_device rd;
     std::mt19937 gen(rd());
 
-
     _permute = _L * ceil(_K * binsize * 1.0 / noOfBitsToHash);
-
-
+    //this only works if  _K*binsize < noOfBitsToHash,
+    // the following permutation is also limited to this situation
 
     int* n_array = new int[_rangePow];
     _indices = new int[_rangePow*_permute];
@@ -36,12 +35,6 @@ DensifiedWtaHash::DensifiedWtaHash(int numHashes, int K, int L, int noOfBitsToHa
     for (int p=0; p<_permute ;p++) {
         std::shuffle(n_array, n_array+_rangePow, rd);
 
-
-
-
-
-
-
         for (int j = 0; j < _K * binsize; j++){
             _indices[p * _rangePow + n_array[j]] = (p * _rangePow + j) / binsize;
             _pos[p * _rangePow + n_array[j]] = (p * _rangePow + j) % binsize;
@@ -49,7 +42,7 @@ DensifiedWtaHash::DensifiedWtaHash(int numHashes, int K, int L, int noOfBitsToHa
         for (int j = _K * binsize; j < _rangePow; j++){
             _indices[p * _rangePow + n_array[j]] = -1;
             _pos[p * _rangePow + n_array[j]] = -1;
-
+            //-1 means the rest elements are not sampled
         }
     }
     delete [] n_array;
@@ -74,7 +67,7 @@ DensifiedWtaHash::DensifiedWtaHash(int numHashes, int K, int L, int noOfBitsToHa
 int * DensifiedWtaHash::getHashEasy(float* data, int dataLen, int topk)
 {
 
-
+    // binsize is the number of times the range is larger than the total number of hashes we need.
 
     int *hashes = new int[_numhashes];
     float *values = new float[_numhashes];
@@ -86,26 +79,12 @@ int * DensifiedWtaHash::getHashEasy(float* data, int dataLen, int topk)
         values[i] = INT_MIN;
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
     for (int p = 0; p < _permute; p++){
         int bin_index = p * _rangePow;
         for ( int i = 0; i < dataLen; i++){
             int inner_index = bin_index + i;
             int binid = _indices[inner_index];
             if (binid == -1){
-
                 continue;
             }
             else{
@@ -134,8 +113,8 @@ int * DensifiedWtaHash::getHashEasy(float* data, int dataLen, int topk)
                     getRandDoubleHash(i, count),
                     _numhashes);
 
-            next = hashes[index];
-            if (count > 100)
+            next = hashes[index]; 
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
@@ -158,17 +137,6 @@ int * DensifiedWtaHash::getHash(int* indices, float* data, int dataLen)
         hashes[i] = INT_MIN;
         values[i] = INT_MIN;
     }
-
-
-
-
-
-
-
-
-
-
-
 
     for (int p = 0; p < _permute; p++){
         for (int i = 0; i < dataLen; i++){
@@ -201,8 +169,8 @@ int * DensifiedWtaHash::getHash(int* indices, float* data, int dataLen)
                     getRandDoubleHash(i, count),
                     _numhashes);
 
-            next = hashes[index];
-            if (count > 100)
+            next = hashes[index]; 
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
@@ -229,17 +197,6 @@ int * DensifiedWtaHash::getHash2(int* indices, float* data, int dataLen)
         values2[i] = INT_MIN;
     }
 
-
-
-
-
-
-
-
-
-
-
-
     for (int p = 0; p < _permute; p++){
         for (int i = 0; i < dataLen; i++){
             int binid = _indices[p * _rangePow + indices[i]];
@@ -253,7 +210,6 @@ int * DensifiedWtaHash::getHash2(int* indices, float* data, int dataLen)
                         values[binid] = data[i];
                         hashes[binid] = _pos[p * _rangePow + indices[i]];
                     }else if(values2[binid] < data[i]){
-
                         values2[binid] = data[i];
                         hashes2[binid] = _pos[p * _rangePow + indices[i]];
                     }
@@ -279,8 +235,8 @@ int * DensifiedWtaHash::getHash2(int* indices, float* data, int dataLen)
                     getRandDoubleHash(i, count),
                     _numhashes);
 
-            next = hashes2[index];
-            if (count > 100)
+            next = hashes2[index]; 
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
@@ -313,17 +269,6 @@ int * DensifiedWtaHash::getHash3(int* indices, float* data, int dataLen)
         values3[i] = INT_MIN;
     }
 
-
-
-
-
-
-
-
-
-
-
-
     for (int p = 0; p < _permute; p++){
         for (int i = 0; i < dataLen; i++){
             int binid = _indices[p * _rangePow + indices[i]];
@@ -340,7 +285,6 @@ int * DensifiedWtaHash::getHash3(int* indices, float* data, int dataLen)
                         hashes[binid] = _pos[p * _rangePow + indices[i]];
                     } else {
                         if (values2[binid] < data[i]) {
-
                             values3[binid] = values2[binid];
                             hashes3[binid] = hashes2[binid];
                             values2[binid] = data[i];
@@ -372,8 +316,8 @@ int * DensifiedWtaHash::getHash3(int* indices, float* data, int dataLen)
                     getRandDoubleHash(i, count),
                     _numhashes);
 
-            next = hashes3[index];
-            if (count > 100)
+            next = hashes3[index]; 
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
@@ -390,7 +334,7 @@ int * DensifiedWtaHash::getHash3(int* indices, float* data, int dataLen)
 
 int DensifiedWtaHash::getRandDoubleHash(int binid, int count) {
     unsigned int tohash = ((binid + 1) << 6) + count;
-    return (_randHash[0] * tohash << 3) >> (32 - _lognumhash);
+    return (_randHash[0] * tohash << 3) >> (32 - _lognumhash); // _lognumhash needs to be ceiled.
 }
 
 

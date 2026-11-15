@@ -6,7 +6,7 @@ Sparsity = 1,0.005,1,1
 Batchsize = 32
 Rehash=1280
 Rebuild=12800
-InputDim = 135909
+InputDim = 135908
 totRecords = 42438
 totRecordsTest = 14146
 
@@ -20,7 +20,7 @@ isMPWTA = 1
 
 isRandom = 0
 
-isExtLog = 0
+isHopper = 0
 
 isLog = 1
 
@@ -43,7 +43,6 @@ testData=../dataset/AmzPrime/test.txt
 weight=../dataset/savedWeights.npz
 savedweight=../dataset/savedWeights.npz
 
-logFile=../dataset/log.txt
-logFile=../dataset/log.txt
+logFile=../dataset/training.log
 
 retrivalfile=../dataset/retrival.txt

@@ -10,7 +10,6 @@ WIKI10_NTRAIN = 14146
 WIKI10_L      = 30938
 
 
-
 def parse_header_counts(line):
     """"""
     nums = re.findall(r"-?\d+", line)
@@ -58,104 +57,6 @@ def read_bow(path):
                         pass
     feat_dim = (feat_max + 1) if feat_max >= 0 else None
     return header, header_counts, docs, feat_dim
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def pick_docs_all_coverfill(train_docs, L_target, N_target, label_freq, warm_ratio=0.0,
@@ -214,15 +115,11 @@ def pick_docs_all_coverfill(train_docs, L_target, N_target, label_freq, warm_rat
     return chosen, S
 
 
-
-
-
 def write_train_small(train_docs, chosen_idx_set, kept_labels_sorted, out_path, src_header, src_header_counts):
     """"""
     label_keep_map = {old: new for new, old in enumerate(kept_labels_sorted)}
     n_docs = 0
     used_labels_new = set()
-
 
 
     new_header = None
@@ -303,7 +200,6 @@ def write_test_small(test_docs, kept_labels_sorted, out_path, src_header, src_he
     return n_docs
 
 
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", required=True, help="Path to train.txt (labels + features)")
@@ -342,10 +238,6 @@ def main():
     print(f"[Stats] Train docs={len(train_docs):,}, uniq_labels={uniq_labels:,}, feat_dim≈{tr_featdim or (tr_counts[1] if tr_counts else 'NA')}")
 
 
-
-
-
-
     chosen_idx, kept_labels = pick_docs_all_coverfill(
         train_docs, L_target=L_target, N_target=N_target,
         label_freq=label_freq, warm_ratio=0.0
@@ -381,11 +273,6 @@ def main():
     print(f"[Write] test.small.txt  -> docs={n_tst:,}")
 
 
-
-
-
-
-
     if args.test_ratio > 0:
 
         train_out = os.path.join(args.out, "train.small.txt")
@@ -419,11 +306,6 @@ def main():
                 f.writelines(keep)
 
             print(f"[Downsample] test.small.txt -> docs={len(keep):,} (from {n_tst:,}, target≈{target_test:,})")
-
-
-
-
-
 
 
     with open(os.path.join(args.out, "label_map.json"), "w", encoding="utf-8") as fo:

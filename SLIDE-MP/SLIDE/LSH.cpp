@@ -15,7 +15,6 @@ LSH::LSH(int K, int L, int RangePow)
 	_RangePow = RangePow;
 	_bucket = new Bucket*[L];
 
-
 	for (int i = 0; i < L; i++)
 	{
 		_bucket[i] = new Bucket[1 << _RangePow];
@@ -26,7 +25,6 @@ LSH::LSH(int K, int L, int RangePow)
 	std::random_device rd;
 	 std::mt19937 gen(rd());
 	std::uniform_int_distribution<> dis(1, INT_MAX);
-
 
 	for (int i = 0; i < _K*_L; i++)
 	{
@@ -120,7 +118,9 @@ int LSH::add(int tableId, int indices, int id)
 }
 
 
-
+/*
+* Returns all the buckets
+*/
 int** LSH::retrieveRaw(int *indices)
 {
 	int ** rawResults = new int*[_L];
@@ -134,7 +134,9 @@ int** LSH::retrieveRaw(int *indices)
 }
 
 
-
+/*
+ * Returns all the bucekts with their 1-step neighbors
+ */
 
 int *** LSH::retrieveRawMP(int *hashes, int *hashes2) {
     int *** rawResults = new int**[_L];
@@ -142,15 +144,6 @@ int *** LSH::retrieveRawMP(int *hashes, int *hashes2) {
     for (int i = 0; i < _L; i++){
         rawResults[i] = new int* [bucs];
     }
-
-
-
-
-
-
-
-
-
 
     for (int i = 0; i < _L; i++)
     {
@@ -268,24 +261,14 @@ int *** LSH::retrieveRawMP(int *hashes, int *hashes2) {
 int *** LSH::retrieveRawMPNew(int *hashes, int *hashes2, int *hashes3) {
     int *** rawResults = new int**[_L];
     int bucs = _K * (_K - 1) * (_K - 2) / (3*2) + _K * (_K - 1) / (2) + _K;
-
-
+//    Max-2 + Max-3 +      pair-Max-2      + Pair-Max-3            +       pair-Max-2-3       + triplet-Max-2 + triplet-Max-3 + triplet-Max-2-3
+//      K   +   K   + _K * (_K - 1) / (2)  + _K * (_K - 1) / (2)   + _K * (_K - 1) / (2) * 2  +  _K * (_K - 1) * (_K - 2) / (3*2) * (2*2*2)
     int bucsNew = _K * (_K - 1) * (_K - 2) / (3*2) * (2*2*2) + _K * (_K - 1) / (2) * (2*2) + _K + _K;
     for (int i = 0; i < _L; i++){
         rawResults[i] = new int* [bucsNew];
     }
 
-
-
-
-
-
-
-
-
-
-
-
+    // Precompute the shifts based on _K and binsize
     std::vector<unsigned int> shifts(_K);
     for (unsigned int k = 0; k < _K; ++k) {
         shifts[k] = ((_K - 1 - k) * (int) floor(log2(binsize)));
@@ -311,14 +294,6 @@ int *** LSH::retrieveRawMPNew(int *hashes, int *hashes2, int *hashes3) {
                                 remain += h << ((_K - 1 - k) * (int) floor(log2(binsize)));
                             }
                         }
-
-
-
-
-
-
-
-
 
                         for (unsigned int choice = 0; choice < 8; ++choice) {
                             unsigned mpindex = remain;
@@ -363,12 +338,6 @@ int *** LSH::retrieveRawMPNew(int *hashes, int *hashes2, int *hashes3) {
                         }
                     }
 
-
-
-
-
-
-
                     for (unsigned int choice = 0; choice < 4; ++choice) {
                         unsigned mpindex = remain;
 
@@ -408,11 +377,6 @@ int *** LSH::retrieveRawMPNew(int *hashes, int *hashes2, int *hashes3) {
                         remain += h << ((_K - 1 - k) * (int) floor(log2(binsize)));
                     }
                 }
-
-
-
-
-
 
                 for (unsigned int choice = 0; choice < 2; ++choice) {
                     unsigned mpindex = remain;

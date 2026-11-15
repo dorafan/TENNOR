@@ -9,7 +9,6 @@
 #include "Config.h"
 using namespace std;
 
-
 DensifiedWtaHash::DensifiedWtaHash(int numHashes, int K, int L, int noOfBitsToHash)
 {
 
@@ -21,10 +20,9 @@ DensifiedWtaHash::DensifiedWtaHash(int numHashes, int K, int L, int noOfBitsToHa
     std::random_device rd;
     std::mt19937 gen(rd());
 
-
     _permute = _L * ceil(_K * binsize * 1.0 / noOfBitsToHash);
-
-
+    //this only works if  _K*binsize < noOfBitsToHash,
+    // the following permutation is also limited to this situation
 
     int* n_array = new int[_rangePow];
     _indices = new int[_rangePow*_permute];
@@ -36,12 +34,8 @@ DensifiedWtaHash::DensifiedWtaHash(int numHashes, int K, int L, int noOfBitsToHa
     for (int p=0; p<_permute ;p++) {
         std::shuffle(n_array, n_array+_rangePow, rd);
 
-
-
-
-
-
-
+        //this only works if  _K*binsize < noOfBitsToHash,
+        // the following permutation is also limited to this situation
         for (int j = 0; j < _K * binsize; j++){
             _indices[p * _rangePow + n_array[j]] = (p * _rangePow + j) / binsize;
             _pos[p * _rangePow + n_array[j]] = (p * _rangePow + j) % binsize;
@@ -49,7 +43,7 @@ DensifiedWtaHash::DensifiedWtaHash(int numHashes, int K, int L, int noOfBitsToHa
         for (int j = _K * binsize; j < _rangePow; j++){
             _indices[p * _rangePow + n_array[j]] = -1;
             _pos[p * _rangePow + n_array[j]] = -1;
-
+            //-1 means the rest elements are not sampled
         }
     }
     delete [] n_array;
@@ -70,11 +64,10 @@ DensifiedWtaHash::DensifiedWtaHash(int numHashes, int K, int L, int noOfBitsToHa
 
 }
 
-
 int * DensifiedWtaHash::getHashEasy(float* data, int dataLen, int topk)
 {
 
-
+    // binsize is the number of times the range is larger than the total number of hashes we need.
 
     int *hashes = new int[_numhashes];
     float *values = new float[_numhashes];
@@ -86,31 +79,23 @@ int * DensifiedWtaHash::getHashEasy(float* data, int dataLen, int topk)
         values[i] = INT_MIN;
     }
 
-
     for (int p = 0; p < _permute; p++){
         int bin_index = p * _rangePow;
         for ( int i = 0; i < dataLen; i++){
             int inner_index = bin_index + i;
             int binid = _indices[inner_index];
             if (binid == -1){
-
+                // this element is not sampled,go to next one
                 continue;
             }
-
-
-
-
-
-
-
-
+            // 保护边界：只对合法 bin 进行更新
             if (binid >= 0 && binid < _numhashes) {
                 float loc_data = data[i];
 
+                // oblivious 版本的 “if (values[binid] < loc_data)”
+                int updateFlag = obl::OblLt(values[binid], loc_data);    // 1 表示需要更新，否则 0
 
-                int updateFlag = obl::OblLt(values[binid], loc_data);
-
-
+                // 按 flag 选择新旧值，不用普通 if
                 float newVal = obl::OblChoose(updateFlag, loc_data, values[binid]);
                 int   newHash = obl::OblChoose(updateFlag, _pos[inner_index], hashes[binid]);
 
@@ -137,7 +122,7 @@ int * DensifiedWtaHash::getHashEasy(float* data, int dataLen, int topk)
                     _numhashes-1);
 
             next = hashes[index];
-            if (count > 100)
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
@@ -146,7 +131,6 @@ int * DensifiedWtaHash::getHashEasy(float* data, int dataLen, int topk)
     delete[] values;
     return hashArray;
 }
-
 
 int * DensifiedWtaHash::getHash(int* indices, float* data, int dataLen)
 {
@@ -161,26 +145,17 @@ int * DensifiedWtaHash::getHash(int* indices, float* data, int dataLen)
         values[i] = INT_MIN;
     }
 
-
-
-
     for (int p = 0; p < _permute; p++){
         int bin_base = p * _rangePow;
         for (int i = 0; i < dataLen; i++){
             int dim = indices[i];
             int indexOffset = bin_base + dim;
             int binid = _indices[indexOffset];
-
             if (binid == -1){
                 continue;
             }else{
-
-
-
-
                 if (binid >= 0 && binid < _numhashes) {
                     float v = data[i];
-
 
                     int updateFlag = obl::OblLt(values[binid], v);
 
@@ -193,10 +168,6 @@ int * DensifiedWtaHash::getHash(int* indices, float* data, int dataLen)
             }
         }
     }
-
-
-
-
 
     for (size_t i = 0; i < _numhashes; i++)
     {
@@ -215,7 +186,7 @@ int * DensifiedWtaHash::getHash(int* indices, float* data, int dataLen)
                     _numhashes-1);
 
             next = hashes[index];
-            if (count > 100)
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
@@ -224,10 +195,6 @@ int * DensifiedWtaHash::getHash(int* indices, float* data, int dataLen)
     delete[] values;
     return hashArray;
 }
-
-
-
-
 
 int * DensifiedWtaHash::getHash2(int* indices, float* data, int dataLen)
 {
@@ -246,34 +213,7 @@ int * DensifiedWtaHash::getHash2(int* indices, float* data, int dataLen)
         values2[i] = INT_MIN;
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    // 主循环：oblivious 维护 top-2
     for (int p = 0; p < _permute; ++p) {
         int bin_base = p * _rangePow;
 
@@ -297,20 +237,20 @@ int * DensifiedWtaHash::getHash2(int* indices, float* data, int dataLen)
             int   oldh1 = hashes[binid];
             int   oldh2 = hashes2[binid];
 
-
+            // v 是否比当前 top1 / top2 更大（返回 0/1）
             int gtTop1 = obl::OblLt(old1, v);
             int gtTop2 = obl::OblLt(old2, v);
 
-            int f1 = gtTop1;
-            int f2 = (1 - gtTop1) * gtTop2;
+            int f1 = gtTop1;                // 升到第一
+            int f2 = (1 - gtTop1) * gtTop2; // 只在没升第一时，才可能升第二
 
-
+            // Stage 1: 处理“升第一”的情况
             float new1  = obl::OblChoose(f1, v,    old1);
             float new2  = obl::OblChoose(f1, old1, old2);
             int   newh1 = obl::OblChoose(f1, pos,  oldh1);
             int   newh2 = obl::OblChoose(f1, oldh1, oldh2);
 
-
+            // Stage 2: 处理“升第二”的情况（在 f1=0 时才可能为 1）
             float final2  = obl::OblChoose(f2, v,   new2);
             int   finalh2 = obl::OblChoose(f2, pos, newh2);
 
@@ -320,10 +260,6 @@ int * DensifiedWtaHash::getHash2(int* indices, float* data, int dataLen)
             hashes2[binid] = finalh2;
         }
     }
-
-
-
-
 
     for (size_t i = 0; i < _numhashes; i++)
     {
@@ -342,7 +278,7 @@ int * DensifiedWtaHash::getHash2(int* indices, float* data, int dataLen)
                     _numhashes-1);
 
             next = hashes2[index];
-            if (count > 100)
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
@@ -375,43 +311,7 @@ int * DensifiedWtaHash::getHash3(int* indices, float* data, int dataLen)
         values3[i] = INT_MIN;
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    // 主循环：oblivious 维护 top-3
     for (int p = 0; p < _permute; ++p) {
         int bin_base = p * _rangePow;
 
@@ -445,7 +345,7 @@ int * DensifiedWtaHash::getHash3(int* indices, float* data, int dataLen)
             int f2 = (1 - gt1) * gt2;
             int f3 = (1 - gt1) * (1 - gt2) * gt3;
 
-
+            // Stage 1: 先处理“升第一”的情况
             float v1 = obl::OblChoose(f1, v,    old1);
             float v2 = obl::OblChoose(f1, old1, old2);
             float v3 = obl::OblChoose(f1, old2, old3);
@@ -453,13 +353,13 @@ int * DensifiedWtaHash::getHash3(int* indices, float* data, int dataLen)
             int   h2 = obl::OblChoose(f1, oldh1, oldh2);
             int   h3 = obl::OblChoose(f1, oldh2, oldh3);
 
-
+            // Stage 2: 再处理“升第二”的情况
             float v2b = obl::OblChoose(f2, v,   v2);
             float v3b = obl::OblChoose(f2, v2,  v3);
             int   h2b = obl::OblChoose(f2, pos, h2);
             int   h3b = obl::OblChoose(f2, h2,  h3);
 
-
+            // Stage 3: 最后处理“升第三”的情况
             float v3c = obl::OblChoose(f3, v,   v3b);
             int   h3c = obl::OblChoose(f3, pos, h3b);
 
@@ -471,8 +371,6 @@ int * DensifiedWtaHash::getHash3(int* indices, float* data, int dataLen)
             hashes3[binid] = h3c;
         }
     }
-
-
 
     for (size_t i = 0; i < _numhashes; i++)
     {
@@ -491,7 +389,7 @@ int * DensifiedWtaHash::getHash3(int* indices, float* data, int dataLen)
                     _numhashes-1);
 
             next = hashes3[index];
-            if (count > 100)
+            if (count > 100) // Densification failure.
                 break;
         }
         hashArray[i] = next;
@@ -505,12 +403,10 @@ int * DensifiedWtaHash::getHash3(int* indices, float* data, int dataLen)
     return hashArray;
 }
 
-
 int DensifiedWtaHash::getRandDoubleHash(int binid, int count) {
     unsigned int tohash = ((binid + 1) << 6) + count;
-    return (_randHash[0] * tohash << 3) >> (32 - _lognumhash);
+    return (_randHash[0] * tohash << 3) >> (32 - _lognumhash); // _lognumhash needs to be ceiled.
 }
-
 
 DensifiedWtaHash::~DensifiedWtaHash()
 {

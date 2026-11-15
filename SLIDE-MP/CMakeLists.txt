@@ -1,134 +1,115 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.16)
+project(SLIDE_MP LANGUAGES C CXX)
 
-PROJECT( HashDeepLearning )
+# Target: Ubuntu 24.04 with GCC 13. SLIDE code uses the paper's -O0;
+# dependencies retain their own Release configuration.
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-SET( CMAKE_CXX_STANDARD 11 )
-
-# cross-platform OpenMP find
-IF(APPLE)
-  # MESSAGE (STATUS "${OpenMP_LIBRARIES}")
-  IF ("${OpenMP_LIBRARIES}" STREQUAL "")
-    FIND_LIBRARY(OpenMP_LIBRARY
-        NAMES omp
-    )
-    FIND_PATH(OpenMP_INCLUDE_DIR
-        omp.h
-    )
-    MARK_AS_ADVANCED(OpenMP_LIBRARY OpenMP_INCLUDE_DIR)
-    INCLUDE(FINDPACKAGEHANDLESTANDARDARGS)
-    FIND_PACKAGE_HANDLE_STANDARD_ARGS(OpenMP DEFAULT_MSG 
-        OpenMP_LIBRARY OpenMP_INCLUDE_DIR)
-    IF (OpenMP_FOUND)
-        # MESSAGE (STATUS "OpenMP FOUND")
-        SET(OpenMP_LIBRARIES ${OpenMP_LIBRARY} CACHE STRING "Cache OpenMP Lib" FORCE)
-        SET(OpenMP_INCLUDE_DIRS ${OpenMP_INCLUDE_DIR} CACHE STRING "Cache OpenMP Include" FORCE)
-        SET(OpenMP_COMPILE_OPTIONS -XPREPROCESSOR -FOpenMP -LOMP)
-        ADD_LIBRARY(OpenMP::OpenMP SHARED IMPORTED)
-        SET_TARGET_PROPERTIES(OpenMP::OpenMP PROPERTIES
-            IMPORTED_LOCATION ${OpenMP_LIBRARIES}
-            INTERFACE_INCLUDE_DIRECTORIES "${OpenMP_INCLUDE_DIRS}"
-            INTERFACE_COMPILE_OPTIONS "${OpenMP_COMPILE_OPTIONS}"
-        )
-        ADD_DEFINITIONS(-D_OPENMP="${OpenMP_CXX_VERSION}")
-        SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}" )
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    ENDIF()
-  ENDIF()
-ELSE()
-  FIND_PACKAGE(OpenMP REQUIRED)
-  SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}" )
-  SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}" )
-ENDIF()
-
-# build dependencies
-INCLUDE( ExternalProject )
-
-FIND_PACKAGE( Git REQUIRED )
-
-OPTION( USE_GIT_PROTOCOL "If behind a firewall turn this off to use https instead." OFF )
-
-function(functionInstallExternalCMakeProject ep_name)
-  ExternalProject_Get_Property(${ep_name} binary_dir)
-  install(SCRIPT ${binary_dir}/cmake_install.cmake)
-endfunction()
-
-ExternalProject_Add( 
-  ZLIB
-  DEPENDS ""
-  GIT_REPOSITORY https://github.com/madler/zlib.git
-  GIT_TAG v1.2.11
-  SOURCE_DIR ZLIB-source
-  BINARY_DIR ZLIB-build
-  UPDATE_COMMAND ""
-  PATCH_COMMAND ""
-  # INSTALL_COMMAND ""
-  CMAKE_GENERATOR ${gen}
-  CMAKE_ARGS
-    -DCMAKE_INSTALL_PREFIX:STRING=${PROJECT_BINARY_DIR}/ep
-    -DINSTALL_BIN_DIR:STRING=${PROJECT_BINARY_DIR}/ep/bin
-    -DINSTALL_INC_DIR:STRING=${PROJECT_BINARY_DIR}/ep/include
-    -DINSTALL_LIB_DIR:STRING=${PROJECT_BINARY_DIR}/ep/lib
-    -DINSTALL_MAN_DIR:STRING=${PROJECT_BINARY_DIR}/ep/share/man
-    -DINSTALL_PKGCONFIG_DIR:STRING=${PROJECT_BINARY_DIR}/ep/share/pkgconfig
-    -DCMAKE_BUILD_TYPE:STRING=Release
+set(SLIDE_SOURCES
+    SLIDE/Bucket.cpp
+    SLIDE/DensifiedMinhash.cpp
+    SLIDE/DensifiedWtaHash.cpp
+    SLIDE/Layer.cpp
+    SLIDE/LSH.cpp
+    SLIDE/MurmurHash.cpp
+    SLIDE/Network.cpp
+    SLIDE/Node.cpp
+    SLIDE/srp.cpp
+    SLIDE/WtaHash.cpp
 )
-functionInstallExternalCMakeProject(ZLIB)
-
-# set the expected zlib libraries
-IF( WIN32 )
-  SET( ZLIB_LIB_DEBUG ${PROJECT_BINARY_DIR}/ep/lib/zlibstaticd.lib )
-  SET( ZLIB_LIB_RELEASE ${PROJECT_BINARY_DIR}/ep/lib/zlibstatic.lib )
-ELSE()
-  SET( ZLIB_LIB_DEBUG ${PROJECT_BINARY_DIR}/ep/lib/libz.a )
-  SET( ZLIB_LIB_RELEASE ${PROJECT_BINARY_DIR}/ep/lib/libz.a )
-ENDIF()
-
-ExternalProject_Add( 
-  CNPY
-  DEPENDS ZLIB
-  GIT_REPOSITORY https://github.com/sarthakpati/cnpy.git
-  # GIT_TAG v1.2.11
-  SOURCE_DIR CNPY-source
-  BINARY_DIR CNPY-build
-  UPDATE_COMMAND ""
-  PATCH_COMMAND ""
-  # INSTALL_COMMAND ""
-  CMAKE_GENERATOR ${gen}
-  CMAKE_ARGS
-    -DZLIB_INCLUDE_DIR:STRING=${PROJECT_BINARY_DIR}/ep/include
-    -DZLIB_LIBRARY_DEBUG:STRING=${ZLIB_LIB_DEBUG}
-    -DZLIB_LIBRARY_RELEASE:STRING=${ZLIB_LIB_RELEASE}
-    -DCMAKE_INSTALL_PREFIX:STRING=${PROJECT_BINARY_DIR}/ep
-    -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS} 
-    -DCMAKE_BUILD_TYPE:STRING=Release
+set(SLIDE_HEADERS
+    SLIDE/Bucket.h
+    SLIDE/Config.h
+    SLIDE/DensifiedMinhash.h
+    SLIDE/DensifiedWtaHash.h
+    SLIDE/Layer.h
+    SLIDE/LSH.h
+    SLIDE/MurmurHash.h
+    SLIDE/Network.h
+    SLIDE/Node.h
+    SLIDE/srp.h
+    SLIDE/WtaHash.h
 )
-functionInstallExternalCMakeProject(CNPY)
+# *_Origin.cpp files are historical alternatives, not additional sources.
+# InputSpecificActiveNetworkFactory.h is not used by this executable.
+set(missing_sources "")
+foreach(source IN LISTS SLIDE_SOURCES SLIDE_HEADERS)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
+        list(APPEND missing_sources "${source}")
+    endif()
+endforeach()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/SLIDE/main.cpp")
+    list(APPEND missing_sources "SLIDE/main.cpp")
+endif()
+if(missing_sources)
+    list(JOIN missing_sources "\n  " missing_sources_text)
+    message(FATAL_ERROR "Required source files are missing:\n  ${missing_sources_text}\nRestore these files from the matching source version before building.")
+endif()
 
-INCLUDE_DIRECTORIES( ${PROJECT_BINARY_DIR}/ep/include )
+set(CNPY_GIT_COMMIT "HEAD" CACHE STRING "CNPY Git reference; optionally set an exact commit")
+if(CNPY_GIT_COMMIT STREQUAL "")
+    set(CNPY_GIT_COMMIT "HEAD" CACHE STRING "CNPY Git reference; optionally set an exact commit" FORCE)
+endif()
+find_package(OpenMP REQUIRED COMPONENTS CXX)
+find_package(Git REQUIRED)
+include(ExternalProject)
 
-# set CNPY lib path
-IF( WIN32 )
-  SET( CNPY_LIB ${PROJECT_BINARY_DIR}/ep/lib/cnpy.lib )
-ELSE()
-SET( CNPY_LIB ${PROJECT_BINARY_DIR}/ep/lib/libcnpy.a )
-ENDIF()
+set(dependency_prefix "${CMAKE_BINARY_DIR}/ep")
+set(zlib_static "${dependency_prefix}/lib/libz.a")
+set(cnpy_static "${dependency_prefix}/lib/libcnpy.a")
 
-# now build SLIDE
-FILE( GLOB_RECURSE SLIDE_SOURCES "${PROJECT_SOURCE_DIR}/SLIDE/*.cpp" )
-FILE( GLOB_RECURSE SLIDE_HEADERS "${PROJECT_SOURCE_DIR}/SLIDE/*.h" )
+ExternalProject_Add(ZLIB
+    PREFIX "${CMAKE_BINARY_DIR}/_deps/zlib"
+    GIT_REPOSITORY https://github.com/madler/zlib.git
+    GIT_TAG v1.2.11
+    UPDATE_COMMAND ""
+    CMAKE_ARGS
+        "-DCMAKE_INSTALL_PREFIX:PATH=${dependency_prefix}"
+        "-DINSTALL_BIN_DIR:PATH=${dependency_prefix}/bin"
+        "-DINSTALL_INC_DIR:PATH=${dependency_prefix}/include"
+        "-DINSTALL_LIB_DIR:PATH=${dependency_prefix}/lib"
+        "-DINSTALL_MAN_DIR:PATH=${dependency_prefix}/share/man"
+        "-DINSTALL_PKGCONFIG_DIR:PATH=${dependency_prefix}/share/pkgconfig"
+        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
+        -DCMAKE_BUILD_TYPE:STRING=Release
+    BUILD_BYPRODUCTS "${zlib_static}"
+)
 
-# add library to decouple compilation
-ADD_LIBRARY( SLIDE_LIB ${SLIDE_HEADERS} ${SLIDE_SOURCES} )
-ADD_DEPENDENCIES( SLIDE_LIB CNPY )
-TARGET_LINK_LIBRARIES( SLIDE_LIB ${CNPY_LIB} )
+ExternalProject_Add(CNPY
+    DEPENDS ZLIB
+    PREFIX "${CMAKE_BINARY_DIR}/_deps/cnpy"
+    GIT_REPOSITORY https://github.com/sarthakpati/cnpy.git
+    GIT_TAG "${CNPY_GIT_COMMIT}"
+    CMAKE_ARGS
+        "-DCMAKE_INSTALL_PREFIX:PATH=${dependency_prefix}"
+        -DCMAKE_INSTALL_LIBDIR:STRING=lib
+        "-DZLIB_INCLUDE_DIR:PATH=${dependency_prefix}/include"
+        "-DZLIB_LIBRARY:FILEPATH=${zlib_static}"
+        "-DZLIB_LIBRARY_DEBUG:FILEPATH=${zlib_static}"
+        "-DZLIB_LIBRARY_RELEASE:FILEPATH=${zlib_static}"
+        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
+        "-DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}"
+        -DBUILD_SHARED_LIBS:BOOL=OFF
+        -DCMAKE_BUILD_TYPE:STRING=Release
+    BUILD_BYPRODUCTS "${cnpy_static}"
+)
 
-# add executable
-SET( SLIDE_EXE_NAME runme )
-ADD_EXECUTABLE( ${SLIDE_EXE_NAME} ${PROJECT_SOURCE_DIR}/SLIDE/main.cpp )
-ADD_DEPENDENCIES( ${SLIDE_EXE_NAME} SLIDE_LIB )
-TARGET_LINK_LIBRARIES( 
-  ${SLIDE_EXE_NAME} 
-  SLIDE_LIB 
-  ${CNPY_LIB} 
-  ${ZLIB_LIB_RELEASE} ) # TBD: this should be changed to use ${ZLIB_LIBRARIES} for debug portability on Windows
-INSTALL( TARGETS ${SLIDE_EXE_NAME} DESTINATION bin )
+add_library(SLIDE_LIB STATIC ${SLIDE_SOURCES} ${SLIDE_HEADERS})
+add_dependencies(SLIDE_LIB CNPY)
+target_include_directories(SLIDE_LIB PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/SLIDE"
+    "${dependency_prefix}/include"
+)
+# Target options follow configuration flags, so -O0 overrides Release's -O3.
+target_compile_options(SLIDE_LIB PRIVATE -O0)
+target_link_libraries(SLIDE_LIB PUBLIC OpenMP::OpenMP_CXX "${cnpy_static}" "${zlib_static}")
+
+add_executable(runme SLIDE/main.cpp)
+add_dependencies(runme CNPY)
+target_compile_options(runme PRIVATE -O0)
+target_link_libraries(runme PRIVATE SLIDE_LIB)
+set_target_properties(runme PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+message(STATUS "SLIDE-MP: -O0, C++11, OpenMP; CNPY reference ${CNPY_GIT_COMMIT}")
